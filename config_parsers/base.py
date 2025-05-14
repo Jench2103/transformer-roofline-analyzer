@@ -16,8 +16,8 @@ class TransformerMode(Enum):
 
 
 class Number:
-    def __init__(self, unit: str, formatter: str, value: Optional[int] = None):
-        self.value: Optional[int] = value
+    def __init__(self, unit: str, formatter: str, value: Optional[float] = None):
+        self.value: Optional[float] = value
         self.unit: str = unit
         self.formatter: str = formatter
 
@@ -57,6 +57,7 @@ class BaseModelConfigParser(ABC):
     METRIC_BW_IPT: Final[str] = "Bandwidth (Input)"
     METRIC_BW_WGT: Final[str] = "Bandwidth (Weight)"
     METRIC_BW_OPT: Final[str] = "Bandwidth (Output)"
+    METRIC_OI: Final[str] = "Operational Intensity"
 
     def __init__(self, model_config: dict, query_config: QueryConfig):
         self.model_conf: dict = model_config
@@ -110,11 +111,31 @@ class BaseModelConfigParser(ABC):
         req_dict[f"Total ({n_blocks} Blocks)"] = total
         return req_dict
 
+    def calc_roofline(self, req_dict: dict[str, dict[str, Number]]) -> dict[str, dict[str, Number]]:
+        req_dict_cp = req_dict.copy()
+
+        for metrics in req_dict_cp.values():
+            metrics[BaseModelConfigParser.METRIC_OI] = Number("FLOPs/Bytes", "!.2h")
+
+            if (
+                metrics[BaseModelConfigParser.METRIC_COMPUTE].value is not None
+                and metrics[BaseModelConfigParser.METRIC_BW_WGT].value is not None
+                and metrics[BaseModelConfigParser.METRIC_BW_IPT].value is not None
+            ):
+                compute_req: int = cast(int, metrics[BaseModelConfigParser.METRIC_COMPUTE].value)
+                bandwidth_req: int = cast(
+                    int, metrics[BaseModelConfigParser.METRIC_BW_WGT].value
+                ) + cast(int, metrics[BaseModelConfigParser.METRIC_BW_IPT].value)
+                metrics[BaseModelConfigParser.METRIC_OI].value = compute_req / bandwidth_req
+
+        return req_dict_cp
+
     def print_summary(self) -> None:
         # Create a list of dictionaries representing each node's metrics.
         # Each dictionary has a "Node" key and keys from the `metrics` dict.
         rows: list[dict] = [
-            {"Node": node, **metrics} for node, metrics in self.calc_total().items()
+            {"Node": node, **metrics}
+            for node, metrics in self.calc_roofline(self.calc_total()).items()
         ]
 
         # Convert all numerical values in the rows to strings for uniform formatting
@@ -124,7 +145,7 @@ class BaseModelConfigParser(ABC):
         rows = rows[0:-1] + [{"Node": "", **self.new_req_dict()}] + [rows[-1]]
 
         # Set column alignment: "Node" column is left-aligned; metric columns are right-aligned
-        colalign = ["left"] + ["right"] * (len(self.new_req_dict()))
+        colalign = ["left"] + ["right"] * (len(self.new_req_dict()) + 1)
 
         # Print the table using tabulate with GitHub-style formatting
         print(tabulate(rows, headers="keys", tablefmt="github", colalign=colalign))

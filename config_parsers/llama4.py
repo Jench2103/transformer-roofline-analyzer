@@ -34,7 +34,7 @@ class Llama4ConfigParser(BaseModelConfigParser):
     @property
     def hw_req_by_layers(self) -> dict[str, dict[str, Number]]:
         if self._hw_req_by_layers is not None:
-            return self._hw_req_by_layers
+            return self._hw_req_by_layers.copy()
 
         req_dict: dict[str, dict[str, Number]] = {
             key: self.new_req_dict() for key in self.get_layer_list()
@@ -101,7 +101,7 @@ class Llama4ConfigParser(BaseModelConfigParser):
                 raise RuntimeError("Unsupported Mode")
 
         self._hw_req_by_layers = req_dict
-        return self._hw_req_by_layers
+        return self._hw_req_by_layers.copy()
 
     def set_proj_req(
         self,
