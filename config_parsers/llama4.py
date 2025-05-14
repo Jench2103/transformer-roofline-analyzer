@@ -46,7 +46,7 @@ class Llama4ConfigParser(BaseModelConfigParser):
 
                 self.set_proj_req(
                     req=req_dict["Attn - QKV_Proj"],
-                    dim_m=self.query_conf.n_computed_tokens + self.query_conf.n_recomputed_tokens,
+                    dim_m=self.query_conf.n_computed_tokens,
                     dim_n=text_config["head_dim"]
                     * (text_config["num_attention_heads"] + text_config["num_key_value_heads"] * 2),
                     dim_k=text_config["hidden_size"],
@@ -124,30 +124,29 @@ class Llama4ConfigParser(BaseModelConfigParser):
 
     def set_text_sdpa_req(self, req: dict[str, Number]) -> None:
         text_config: dict = self.model_conf["text_config"]
-        total_seq_len: int = (
-            self.query_conf.n_cached_tokens
-            + self.query_conf.n_recomputed_tokens
-            + self.query_conf.n_computed_tokens
-        )
+        kv_seq_len: int = self.query_conf.n_cached_tokens + self.query_conf.n_computed_tokens
         tensor_qo_dims: int = text_config["hidden_size"]
         tensor_kv_dims: int = text_config["head_dim"] * text_config["num_key_value_heads"]
         torch_dtype: str = text_config["torch_dtype"]
 
+        tensor_q_size: int = (
+            self.query_conf.n_computed_tokens * tensor_qo_dims * torch_dtype_width(torch_dtype)
+        )
+        tensor_kv_size: int = kv_seq_len * (tensor_kv_dims * 2) * torch_dtype_width(torch_dtype)
+
         req[BaseModelConfigParser.METRIC_COMPUTE].value = 0  # Initialization
         req[BaseModelConfigParser.METRIC_BW_WGT].value = 0 * torch_dtype_width(torch_dtype)
-        req[BaseModelConfigParser.METRIC_BW_IPT].value = (
-            total_seq_len * (tensor_qo_dims + tensor_kv_dims * 2) * torch_dtype_width(torch_dtype)
-        )
+        req[BaseModelConfigParser.METRIC_BW_IPT].value = tensor_q_size + tensor_kv_size
         req[BaseModelConfigParser.METRIC_BW_OPT].value = (
-            total_seq_len * tensor_qo_dims * torch_dtype_width(torch_dtype)
+            self.query_conf.n_computed_tokens * tensor_qo_dims * torch_dtype_width(torch_dtype)
         )
 
         # GEMM: P = QK^T
         req[BaseModelConfigParser.METRIC_COMPUTE].value = cast(
             int, req[BaseModelConfigParser.METRIC_COMPUTE].value
-        ) + (self.query_conf.n_computed_tokens * total_seq_len * tensor_qo_dims)
+        ) + (self.query_conf.n_computed_tokens * kv_seq_len * (tensor_qo_dims * 2 - 1))
 
         # GEMM: O = SV
         req[BaseModelConfigParser.METRIC_COMPUTE].value = cast(
             int, req[BaseModelConfigParser.METRIC_COMPUTE].value
-        ) + (self.query_conf.n_computed_tokens * tensor_kv_dims * total_seq_len)
+        ) + (self.query_conf.n_computed_tokens * tensor_kv_dims * (kv_seq_len * 2 - 1))

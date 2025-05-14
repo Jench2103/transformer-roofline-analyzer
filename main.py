@@ -19,9 +19,7 @@ def compute_roofline_metrics(model_conf: dict, args: argparse.Namespace) -> None
     if parser_cls is None:
         raise NotImplementedError(f"No parser for model_type: {model_type}")
 
-    query_config: QueryConfig = QueryConfig(
-        args.cached_tokens, args.recomputed_tokens, args.computed_tokens
-    )
+    query_config: QueryConfig = QueryConfig(args.cached_tokens, args.computed_tokens)
 
     parser = parser_cls(model_conf, query_config)
     parser.print_summary()
@@ -30,9 +28,20 @@ def compute_roofline_metrics(model_conf: dict, args: argparse.Namespace) -> None
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("config_path", help="Path to model config.json")
-    parser.add_argument("--cached-tokens", type=int, default=1024, required=False, help="")
-    parser.add_argument("--recomputed-tokens", type=int, default=0, required=False, help="")
-    parser.add_argument("--computed-tokens", type=int, default=1, required=False, help="")
+    parser.add_argument(
+        "--cached-tokens",
+        type=int,
+        default=0,
+        required=False,
+        help="Number of tokens in the KV-cache that will be read during attention (e.g., context tokens)",
+    )
+    parser.add_argument(
+        "--computed-tokens",
+        type=int,
+        default=1,
+        required=False,
+        help="Number of tokens for which the KV-cache must be computed and stored (e.g., prompt + decoded tokens)",
+    )
     args = parser.parse_args()
 
     with open(args.config_path) as f:
