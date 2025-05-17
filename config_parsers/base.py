@@ -29,10 +29,10 @@ class Number:
 
 
 class QueryConfig:
-    def __init__(self, cached_tokens: list[int], computed_tokens: list[int]):
+    def __init__(self, cached_tokens: list[int], input_tokens: list[int]):
         self._t_mode: TransformerMode = TransformerMode.Text
         self._n_cached_tokens: list[int] = cached_tokens
-        self._n_computed_tokens: list[int] = computed_tokens
+        self._n_input_tokens: list[int] = input_tokens
 
     @property
     def t_mode(self) -> TransformerMode:
@@ -43,8 +43,8 @@ class QueryConfig:
         return self._n_cached_tokens
 
     @property
-    def n_computed_tokens(self) -> list[int]:
-        return self._n_computed_tokens
+    def n_input_tokens(self) -> list[int]:
+        return self._n_input_tokens
 
 
 class BaseModelConfigParser(ABC):
