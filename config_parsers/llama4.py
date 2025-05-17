@@ -1,5 +1,3 @@
-from typing import cast
-
 from .base import BaseModelConfigParser, Number, TransformerMode, torch_dtype_width
 
 
@@ -46,7 +44,7 @@ class Llama4ConfigParser(BaseModelConfigParser):
 
                 self.set_proj_req(
                     req=req_dict["Attn - QKV_Proj"],
-                    dim_m=self.query_conf.n_computed_tokens,
+                    dim_m=sum(self.query_conf.n_computed_tokens),
                     dim_n=text_config["head_dim"]
                     * (text_config["num_attention_heads"] + text_config["num_key_value_heads"] * 2),
                     dim_k=text_config["hidden_size"],
@@ -55,7 +53,7 @@ class Llama4ConfigParser(BaseModelConfigParser):
                 self.set_text_sdpa_req(req=req_dict["Attn - SDPA"])
                 self.set_proj_req(
                     req=req_dict["Attn - O_Proj"],
-                    dim_m=self.query_conf.n_computed_tokens,
+                    dim_m=sum(self.query_conf.n_computed_tokens),
                     dim_n=text_config["hidden_size"],
                     dim_k=text_config["hidden_size"],
                     torch_dtype=text_config["torch_dtype"],
@@ -63,35 +61,35 @@ class Llama4ConfigParser(BaseModelConfigParser):
 
                 self.set_proj_req(
                     req=req_dict["Ffn - Router"],
-                    dim_m=self.query_conf.n_computed_tokens,
+                    dim_m=sum(self.query_conf.n_computed_tokens),
                     dim_n=text_config["num_local_experts"],
                     dim_k=text_config["hidden_size"],
                     torch_dtype=text_config["torch_dtype"],
                 )
                 self.set_proj_req(
                     req=req_dict["Ffn - RoutedExp_GateUp_Proj"],
-                    dim_m=self.query_conf.n_computed_tokens,
+                    dim_m=sum(self.query_conf.n_computed_tokens),
                     dim_n=text_config["intermediate_size"] * 2,
                     dim_k=text_config["hidden_size"],
                     torch_dtype=text_config["torch_dtype"],
                 )
                 self.set_proj_req(
                     req=req_dict["Ffn - RoutedExp_Down_Proj"],
-                    dim_m=self.query_conf.n_computed_tokens,
+                    dim_m=sum(self.query_conf.n_computed_tokens),
                     dim_n=text_config["hidden_size"],
                     dim_k=text_config["intermediate_size"],
                     torch_dtype=text_config["torch_dtype"],
                 )
                 self.set_proj_req(
                     req=req_dict["Ffn - SharedExp_GateUp_Proj"],
-                    dim_m=self.query_conf.n_computed_tokens,
+                    dim_m=sum(self.query_conf.n_computed_tokens),
                     dim_n=text_config["intermediate_size"] * 2,
                     dim_k=text_config["hidden_size"],
                     torch_dtype=text_config["torch_dtype"],
                 )
                 self.set_proj_req(
                     req=req_dict["Ffn - SharedExp_Down_Proj"],
-                    dim_m=self.query_conf.n_computed_tokens,
+                    dim_m=sum(self.query_conf.n_computed_tokens),
                     dim_n=text_config["hidden_size"],
                     dim_k=text_config["intermediate_size"],
                     torch_dtype=text_config["torch_dtype"],
@@ -124,29 +122,36 @@ class Llama4ConfigParser(BaseModelConfigParser):
 
     def set_text_sdpa_req(self, req: dict[str, Number]) -> None:
         text_config: dict = self.model_conf["text_config"]
-        kv_seq_len: int = self.query_conf.n_cached_tokens + self.query_conf.n_computed_tokens
+        batch_size: int = len(self.query_conf.n_cached_tokens)
         tensor_qo_dims: int = text_config["hidden_size"]
         tensor_kv_dims: int = text_config["head_dim"] * text_config["num_key_value_heads"]
         torch_dtype: str = text_config["torch_dtype"]
 
-        tensor_q_size: int = (
-            self.query_conf.n_computed_tokens * tensor_qo_dims * torch_dtype_width(torch_dtype)
-        )
-        tensor_kv_size: int = kv_seq_len * (tensor_kv_dims * 2) * torch_dtype_width(torch_dtype)
+        metric_compute: int = 0
+        metric_bw_wgt: int = 0
+        metric_bw_ipt: int = 0
+        metric_bw_opt: int = 0
 
-        req[BaseModelConfigParser.METRIC_COMPUTE].value = 0  # Initialization
-        req[BaseModelConfigParser.METRIC_BW_WGT].value = 0 * torch_dtype_width(torch_dtype)
-        req[BaseModelConfigParser.METRIC_BW_IPT].value = tensor_q_size + tensor_kv_size
-        req[BaseModelConfigParser.METRIC_BW_OPT].value = (
-            self.query_conf.n_computed_tokens * tensor_qo_dims * torch_dtype_width(torch_dtype)
-        )
+        for query_idx in range(batch_size):
+            qo_seq_len: int = self.query_conf.n_computed_tokens[query_idx]
+            kv_seq_len: int = (
+                self.query_conf.n_cached_tokens[query_idx]
+                + self.query_conf.n_computed_tokens[query_idx]
+            )
 
-        # GEMM: P = QK^T
-        req[BaseModelConfigParser.METRIC_COMPUTE].value = cast(
-            int, req[BaseModelConfigParser.METRIC_COMPUTE].value
-        ) + (self.query_conf.n_computed_tokens * kv_seq_len * (tensor_qo_dims * 2 - 1))
+            tensor_qo_size: int = qo_seq_len * tensor_qo_dims * torch_dtype_width(torch_dtype)
+            tensor_kv_size: int = kv_seq_len * (tensor_kv_dims * 2) * torch_dtype_width(torch_dtype)
 
-        # GEMM: O = SV
-        req[BaseModelConfigParser.METRIC_COMPUTE].value = cast(
-            int, req[BaseModelConfigParser.METRIC_COMPUTE].value
-        ) + (self.query_conf.n_computed_tokens * tensor_kv_dims * (kv_seq_len * 2 - 1))
+            metric_bw_ipt += tensor_qo_size + tensor_kv_size
+            metric_bw_opt += tensor_qo_size
+
+            # GEMM: P = QK^T
+            metric_compute += qo_seq_len * kv_seq_len * (tensor_qo_dims * 2 - 1)
+
+            # GEMM: O = SV
+            metric_compute += qo_seq_len * tensor_kv_dims * (kv_seq_len * 2 - 1)
+
+        req[BaseModelConfigParser.METRIC_COMPUTE].value = metric_compute
+        req[BaseModelConfigParser.METRIC_BW_WGT].value = metric_bw_wgt
+        req[BaseModelConfigParser.METRIC_BW_IPT].value = metric_bw_ipt
+        req[BaseModelConfigParser.METRIC_BW_OPT].value = metric_bw_opt

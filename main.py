@@ -19,7 +19,24 @@ def compute_roofline_metrics(model_conf: dict, args: argparse.Namespace) -> None
     if parser_cls is None:
         raise NotImplementedError(f"No parser for model_type: {model_type}")
 
-    query_config: QueryConfig = QueryConfig(args.cached_tokens, args.computed_tokens)
+    if len(args.cached_tokens) != len(args.computed_tokens):
+        raise ValueError(
+            "`--cached-tokens` and `--computed-tokens` must have the same number of elements."
+        )
+
+    if (args.batch_size is not None) and (args.batch_size % len(args.cached_tokens) != 0):
+        raise ValueError(
+            "`--batch-size` must be a multiple of the elements in `--cached-tokens` and `--computed-tokens`."
+        )
+
+    cached_tokens: list[int] = args.cached_tokens * (
+        int(args.batch_size / len(args.cached_tokens)) if args.batch_size is not None else 1
+    )
+    computed_tokens: list[int] = args.computed_tokens * (
+        int(args.batch_size / len(args.computed_tokens)) if args.batch_size is not None else 1
+    )
+
+    query_config: QueryConfig = QueryConfig(cached_tokens, computed_tokens)
 
     parser = parser_cls(model_conf, query_config)
     parser.print_summary()
@@ -31,17 +48,26 @@ def main():
     parser.add_argument(
         "--cached-tokens",
         type=int,
-        default=0,
+        nargs="+",
+        default=[0],
         required=False,
-        help="Number of tokens in the KV-cache that will be read during attention (e.g., context tokens)",
+        help="List of token counts already present in the KV-cache for each query in the batch (e.g., cached context tokens used during attention).",
     )
     parser.add_argument(
         "--computed-tokens",
         type=int,
-        default=1,
+        nargs="+",
+        default=[1],
         required=False,
-        help="Number of tokens for which the KV-cache must be computed and stored (e.g., prompt + decoded tokens)",
+        help="List of token counts to compute and store in the KV-cache for each query in the batch (e.g., prompt or generated tokens).",
     )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        required=False,
+        help="The number of queries in a batch.",
+    )
+
     args = parser.parse_args()
 
     with open(args.config_path) as f:

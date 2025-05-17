@@ -29,21 +29,21 @@ class Number:
 
 
 class QueryConfig:
-    def __init__(self, cached_tokens: int, computed_tokens: int):
+    def __init__(self, cached_tokens: list[int], computed_tokens: list[int]):
         self._t_mode: TransformerMode = TransformerMode.Text
-        self._n_cached_tokens: int = cached_tokens
-        self._n_computed_tokens: int = computed_tokens
+        self._n_cached_tokens: list[int] = cached_tokens
+        self._n_computed_tokens: list[int] = computed_tokens
 
     @property
     def t_mode(self) -> TransformerMode:
         return self._t_mode
 
     @property
-    def n_cached_tokens(self) -> int:
+    def n_cached_tokens(self) -> list[int]:
         return self._n_cached_tokens
 
     @property
-    def n_computed_tokens(self) -> int:
+    def n_computed_tokens(self) -> list[int]:
         return self._n_computed_tokens
 
 
