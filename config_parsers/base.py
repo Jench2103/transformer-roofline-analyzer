@@ -83,6 +83,45 @@ class BaseModelConfigParser(ABC):
             BaseModelConfigParser.METRIC_BW_OPT: Number("B", "!.2k"),
         }
 
+    def set_op_proj_req(
+        self,
+        req: dict[str, Number],
+        dim_m: int,
+        dim_n: int,
+        dim_k: int,
+        torch_dtype: str,
+    ) -> None:
+        metric_compute: int = (
+            int(cast(float, req[BaseModelConfigParser.METRIC_COMPUTE].value))
+            if req[BaseModelConfigParser.METRIC_COMPUTE].value is not None
+            else 0
+        )
+        metric_bw_wgt: int = (
+            int(cast(float, req[BaseModelConfigParser.METRIC_BW_WGT].value))
+            if req[BaseModelConfigParser.METRIC_BW_WGT].value is not None
+            else 0
+        )
+        metric_bw_ipt: int = (
+            int(cast(float, req[BaseModelConfigParser.METRIC_BW_IPT].value))
+            if req[BaseModelConfigParser.METRIC_BW_IPT].value is not None
+            else 0
+        )
+        metric_bw_opt: int = (
+            int(cast(float, req[BaseModelConfigParser.METRIC_BW_OPT].value))
+            if req[BaseModelConfigParser.METRIC_BW_OPT].value is not None
+            else 0
+        )
+
+        metric_compute += dim_m * dim_n * (dim_k * 2 - 1)
+        metric_bw_wgt += (dim_k * dim_n) * torch_dtype_width(torch_dtype)
+        metric_bw_ipt += (dim_m * dim_k) * torch_dtype_width(torch_dtype)
+        metric_bw_opt += (dim_m * dim_n) * torch_dtype_width(torch_dtype)
+
+        req[BaseModelConfigParser.METRIC_COMPUTE].value = metric_compute
+        req[BaseModelConfigParser.METRIC_BW_WGT].value = metric_bw_wgt
+        req[BaseModelConfigParser.METRIC_BW_IPT].value = metric_bw_ipt
+        req[BaseModelConfigParser.METRIC_BW_OPT].value = metric_bw_opt
+
     def calc_total(self) -> dict[str, dict[str, Number]]:
         n_blocks: int = self.get_num_blocks()
         req_dict: dict[str, dict[str, Number]] = self.hw_req_by_layers.copy()

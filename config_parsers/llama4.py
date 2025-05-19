@@ -4,13 +4,13 @@ from .base import BaseModelConfigParser, Number, TransformerMode, torch_dtype_wi
 class Llama4ConfigParser(BaseModelConfigParser):
     def get_layer_list(self) -> list[str]:
         return [
-            "Attn - Norm",
+            "Attn - RMSNorm",
             "Attn - QKV_Proj",
             "Attn - RoPE",
             "Attn - SDPA",
             "Attn - O_Proj",
             "Attn - ResidualAdd",
-            "Ffn - Norm",
+            "Ffn - RMSNorm",
             "Ffn - Router",
             "Ffn - RoutedExp_GateUp_Proj",
             "Ffn - RoutedExp_ActMul",
@@ -42,7 +42,7 @@ class Llama4ConfigParser(BaseModelConfigParser):
             case TransformerMode.Text:
                 text_config: dict = self.model_conf["text_config"]
 
-                self.set_proj_req(
+                self.set_op_proj_req(
                     req=req_dict["Attn - QKV_Proj"],
                     dim_m=sum(self.query_conf.n_input_tokens),
                     dim_n=text_config["head_dim"]
@@ -51,7 +51,7 @@ class Llama4ConfigParser(BaseModelConfigParser):
                     torch_dtype=text_config["torch_dtype"],
                 )
                 self.set_text_sdpa_req(req=req_dict["Attn - SDPA"])
-                self.set_proj_req(
+                self.set_op_proj_req(
                     req=req_dict["Attn - O_Proj"],
                     dim_m=sum(self.query_conf.n_input_tokens),
                     dim_n=text_config["hidden_size"],
@@ -59,35 +59,35 @@ class Llama4ConfigParser(BaseModelConfigParser):
                     torch_dtype=text_config["torch_dtype"],
                 )
 
-                self.set_proj_req(
+                self.set_op_proj_req(
                     req=req_dict["Ffn - Router"],
                     dim_m=sum(self.query_conf.n_input_tokens),
                     dim_n=text_config["num_local_experts"],
                     dim_k=text_config["hidden_size"],
                     torch_dtype=text_config["torch_dtype"],
                 )
-                self.set_proj_req(
+                self.set_op_proj_req(
                     req=req_dict["Ffn - RoutedExp_GateUp_Proj"],
                     dim_m=sum(self.query_conf.n_input_tokens),
                     dim_n=text_config["intermediate_size"] * 2,
                     dim_k=text_config["hidden_size"],
                     torch_dtype=text_config["torch_dtype"],
                 )
-                self.set_proj_req(
+                self.set_op_proj_req(
                     req=req_dict["Ffn - RoutedExp_Down_Proj"],
                     dim_m=sum(self.query_conf.n_input_tokens),
                     dim_n=text_config["hidden_size"],
                     dim_k=text_config["intermediate_size"],
                     torch_dtype=text_config["torch_dtype"],
                 )
-                self.set_proj_req(
+                self.set_op_proj_req(
                     req=req_dict["Ffn - SharedExp_GateUp_Proj"],
                     dim_m=sum(self.query_conf.n_input_tokens),
                     dim_n=text_config["intermediate_size"] * 2,
                     dim_k=text_config["hidden_size"],
                     torch_dtype=text_config["torch_dtype"],
                 )
-                self.set_proj_req(
+                self.set_op_proj_req(
                     req=req_dict["Ffn - SharedExp_Down_Proj"],
                     dim_m=sum(self.query_conf.n_input_tokens),
                     dim_n=text_config["hidden_size"],
@@ -100,25 +100,6 @@ class Llama4ConfigParser(BaseModelConfigParser):
 
         self._hw_req_by_layers = req_dict
         return self._hw_req_by_layers.copy()
-
-    def set_proj_req(
-        self,
-        req: dict[str, Number],
-        dim_m: int,
-        dim_n: int,
-        dim_k: int,
-        torch_dtype: str,
-    ) -> None:
-        req[BaseModelConfigParser.METRIC_COMPUTE].value = dim_m * dim_n * (dim_k * 2 - 1)
-        req[BaseModelConfigParser.METRIC_BW_WGT].value = (dim_k * dim_n) * torch_dtype_width(
-            torch_dtype
-        )
-        req[BaseModelConfigParser.METRIC_BW_IPT].value = (dim_m * dim_k) * torch_dtype_width(
-            torch_dtype
-        )
-        req[BaseModelConfigParser.METRIC_BW_OPT].value = (dim_m * dim_n) * torch_dtype_width(
-            torch_dtype
-        )
 
     def set_text_sdpa_req(self, req: dict[str, Number]) -> None:
         text_config: dict = self.model_conf["text_config"]
