@@ -52,6 +52,19 @@ class TransformerMode(Enum):
 
 
 class Number:
+    """
+    Represents a numerical value with associated unit and formatting for display.
+
+    Attributes:
+        value (Optional[float]): The numeric value (e.g., FLOPs, bytes). Can be None if not yet computed.
+        unit (str): The unit associated with the value (e.g., "FLOPs", "B").
+        formatter (str): A format string used for pretty-printing the value (e.g., '!.2h').
+
+    Methods:
+        __str__(): Returns a formatted string representation of the number with its unit.
+                   Returns an empty string if the value is None.
+    """
+
     def __init__(self, unit: str, formatter: str, value: Optional[float] = None):
         self.value: Optional[float] = value
         self.unit: str = unit
@@ -65,6 +78,20 @@ class Number:
 
 
 class QueryConfig:
+    """
+    Stores token-related configuration for a transformer model inference query.
+
+    Attributes:
+        _t_mode (TransformerMode): The mode of transformer execution (e.g., text generation).
+        _n_cached_tokens (list[int]): List of cached token counts for each batch element.
+        _n_input_tokens (list[int]): List of new input token counts for each batch element.
+
+    Properties:
+        t_mode: Returns the transformer mode.
+        n_cached_tokens: Returns the list of cached token counts.
+        n_input_tokens: Returns the list of input token counts.
+    """
+
     def __init__(self, cached_tokens: list[int], input_tokens: list[int]):
         self._t_mode: TransformerMode = TransformerMode.Text
         self._n_cached_tokens: list[int] = cached_tokens
@@ -84,6 +111,45 @@ class QueryConfig:
 
 
 class BaseModelConfigParser(ABC):
+    """
+    Abstract base class for parsing and analyzing transformer model configurations
+    with respect to their hardware resource requirements.
+
+    This class defines a framework for extracting layer-wise compute and memory
+    bandwidth statistics (e.g., FLOPs, input/output/weight bandwidths) from a
+    HuggingFace-style model configuration and query configuration. These statistics
+    are used to estimate roofline performance metrics and operational intensity
+    (FLOPs per byte), which are helpful for performance modeling and optimization
+    on various hardware platforms.
+
+    Subclasses must implement:
+        - `get_layer_list`: Returns a list of layer names to include in the analysis.
+        - `get_num_blocks`: Returns the total number of transformer blocks in the model.
+        - `get_layer_num_blocks`: Returns how many transformer blocks a given layer appears in.
+        - `hw_req_by_layers`: Returns a dictionary mapping each layer name to its corresponding hardware metrics.
+
+    Important:
+        The `hw_req_by_layers` property **must** also ensure that the internal
+        `_hw_req_by_layers` cache is constructed and populated if it is `None`.
+        This lazy initialization ensures metrics are computed only once and reused
+        for further aggregation or summary reporting.
+
+    Key Features:
+        - Defines standard metrics for hardware evaluation: compute (FLOPs),
+          bandwidth (input, weight, output), and operational intensity (OI).
+        - Provides utility functions to calculate these metrics for common
+          transformer operations like projection, summation, RoPE, RMSNorm, and
+          activation-gating patterns (e.g., in LLaMA FFNs).
+        - Aggregates layer-wise metrics to compute total model requirements.
+        - Computes OI and formats results in a tabulated summary for easy inspection.
+
+    Attributes:
+        model_conf (dict): The HuggingFace-style model configuration.
+        query_conf (QueryConfig): The query configuration defining model usage.
+        _hw_req_by_layers (Optional[dict]): Cached dictionary mapping each layer
+                                            to its hardware metrics.
+    """
+
     METRIC_COMPUTE: Final[str] = "Compute"
     METRIC_BW_IPT: Final[str] = "Bandwidth (Input)"
     METRIC_BW_WGT: Final[str] = "Bandwidth (Weight)"
@@ -97,25 +163,59 @@ class BaseModelConfigParser(ABC):
 
     @abstractmethod
     def get_layer_list(self) -> list[str]:
-        pass
+        """
+        Returns a list of all layer names to be displayed in the output table.
+        """
+        raise NotImplementedError()
 
     @abstractmethod
     def get_num_blocks(self) -> int:
-        pass
+        """
+        Returns the total number of transformer blocks present in the model.
+        """
+        raise NotImplementedError()
 
     @abstractmethod
     def get_layer_num_blocks(self, layer: str) -> int:
-        pass
+        """
+        Returns the number of transformer blocks that include the specified layer.
+
+        Args:
+            layer (str): The name of the layer to query.
+
+        Returns:
+            int: Number of transformer blocks containing the layer.
+        """
+        raise NotImplementedError()
 
     @property
     @abstractmethod
     def hw_req_by_layers(self) -> dict[str, dict[str, Number]]:
-        pass
+        """
+        Provides a mapping of each layer to its corresponding hardware resource metrics (e.g., compute, bandwidth).
+
+        Returns:
+            dict[str, dict[str, Number]]: A dictionary where keys are layer names and values are dictionaries of metric names and their corresponding values.
+        """
+        raise NotImplementedError()
 
     def get_model_type(self) -> str:
+        """
+        Retrieves the model type specified in the HuggingFace configuration.
+
+        Returns:
+            str: The model type as defined in the configuration, or "unknown" if not specified.
+        """
         return self.model_conf.get("model_type", "unknown")
 
     def new_req_dict(self) -> dict[str, Number]:
+        """
+        Initializes a new dictionary for storing hardware metrics for a single layer.
+
+        Returns:
+            dict[str, Number]: A dictionary with keys for each metric initialized with
+            default `Number` objects.
+        """
         return {
             BaseModelConfigParser.METRIC_COMPUTE: Number("FLOPs", "!.2h"),
             BaseModelConfigParser.METRIC_BW_WGT: Number("B", "!.2k"),
@@ -125,30 +225,30 @@ class BaseModelConfigParser(ABC):
 
     def set_op_proj_req(
         self,
-        req: dict[str, Number],
+        layer_entry: dict[str, Number],
         dim_m: int,
         dim_n: int,
         dim_k: int,
         torch_dtype: str,
     ) -> None:
         metric_compute: int = (
-            int(cast(float, req[BaseModelConfigParser.METRIC_COMPUTE].value))
-            if req[BaseModelConfigParser.METRIC_COMPUTE].value is not None
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value))
+            if layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value is not None
             else 0
         )
         metric_bw_wgt: int = (
-            int(cast(float, req[BaseModelConfigParser.METRIC_BW_WGT].value))
-            if req[BaseModelConfigParser.METRIC_BW_WGT].value is not None
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value is not None
             else 0
         )
         metric_bw_ipt: int = (
-            int(cast(float, req[BaseModelConfigParser.METRIC_BW_IPT].value))
-            if req[BaseModelConfigParser.METRIC_BW_IPT].value is not None
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value is not None
             else 0
         )
         metric_bw_opt: int = (
-            int(cast(float, req[BaseModelConfigParser.METRIC_BW_OPT].value))
-            if req[BaseModelConfigParser.METRIC_BW_OPT].value is not None
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value is not None
             else 0
         )
 
@@ -157,10 +257,10 @@ class BaseModelConfigParser(ABC):
         metric_bw_ipt += (dim_m * dim_k) * torch_dtype_width(torch_dtype)
         metric_bw_opt += (dim_m * dim_n) * torch_dtype_width(torch_dtype)
 
-        req[BaseModelConfigParser.METRIC_COMPUTE].value = metric_compute
-        req[BaseModelConfigParser.METRIC_BW_WGT].value = metric_bw_wgt
-        req[BaseModelConfigParser.METRIC_BW_IPT].value = metric_bw_ipt
-        req[BaseModelConfigParser.METRIC_BW_OPT].value = metric_bw_opt
+        layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value = metric_compute
+        layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value = metric_bw_wgt
+        layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value = metric_bw_ipt
+        layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value = metric_bw_opt
 
     def set_op_sum_req(
         self, layer_entry: dict[str, Number], num_elem: int, num_tensors: int, torch_dtype: str
@@ -386,6 +486,14 @@ class BaseModelConfigParser(ABC):
         layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value = metric_bw_opt
 
     def calc_total(self) -> dict[str, dict[str, Number]]:
+        """
+        Computes the aggregate roofline metrics across the entire model, summing values from all layers and adjusting for the number of transformer blocks.
+
+        Returns:
+            dict[str, dict[str, Number]]: A dictionary of metrics per layer, including a summary
+            entry labeled "Total (<n> Blocks)".
+        """
+
         n_blocks: int = self.get_num_blocks()
         req_dict: dict[str, dict[str, Number]] = self.hw_req_by_layers.copy()
         total: dict[str, Number] = self.new_req_dict()
@@ -407,6 +515,15 @@ class BaseModelConfigParser(ABC):
         return req_dict
 
     def calc_roofline(self, req_dict: dict[str, dict[str, Number]]) -> dict[str, dict[str, Number]]:
+        """
+        Computes the operational intensity (FLOPs per byte) for each layer using compute and bandwidth metrics.
+
+        Args:
+            req_dict (dict[str, dict[str, Number]]): Dictionary of hardware metrics per layer.
+
+        Returns:
+            dict[str, dict[str, Number]]: Updated dictionary with operational intensity included.
+        """
         req_dict_cp = req_dict.copy()
 
         for metrics in req_dict_cp.values():
@@ -426,6 +543,10 @@ class BaseModelConfigParser(ABC):
         return req_dict_cp
 
     def print_summary(self) -> None:
+        """
+        Displays a formatted summary table of the model's hardware metrics and computed roofline statistics for each layer and the overall model.
+        """
+
         # Create a list of dictionaries representing each node's metrics.
         # Each dictionary has a "Node" key and keys from the `metrics` dict.
         rows: list[dict] = [
