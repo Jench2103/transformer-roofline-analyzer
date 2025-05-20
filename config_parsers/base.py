@@ -7,7 +7,43 @@ from tabulate import tabulate
 
 
 def torch_dtype_width(torch_type: str) -> int:
-    return 2
+    """
+    Reference: https://docs.pytorch.org/docs/stable/tensors.html#data-types
+    """
+
+    match torch_type:
+        # Integer
+        case "uint8" | "int8" | "quint8" | "qint8":
+            return 1
+        case "uint16" | "int16" | "short":
+            return 2
+        case "uint32" | "int32" | "int" | "qint32":
+            return 4
+        case "uint64" | "int64" | "long":
+            return 8
+
+        # Floating point
+        case "float8_e4m3fn" | "float8_e5m2":
+            return 1
+        case "float16" | "half" | "bfloat16":
+            return 2
+        case "float32" | "float":
+            return 4
+        case "float64" | "double":
+            return 8
+
+        case _:
+            raise ValueError(f"Unsupported torch data type: `{torch_type}`.")
+
+
+def act_flops(act: str) -> int:
+    match act:
+        # https://github.com/vllm-project/vllm/blob/84ab4feb7e994ee6c692957e6d80a528af072e49/csrc/activation_kernels.cu#L35
+        case "silu":
+            return 4
+
+        case _:
+            raise ValueError(f"Unsupported activation function: `{act}`.")
 
 
 class TransformerMode(Enum):
@@ -67,6 +103,10 @@ class BaseModelConfigParser(ABC):
     def get_num_blocks(self) -> int:
         pass
 
+    @abstractmethod
+    def get_layer_num_blocks(self, layer: str) -> int:
+        pass
+
     @property
     @abstractmethod
     def hw_req_by_layers(self) -> dict[str, dict[str, Number]]:
@@ -122,6 +162,229 @@ class BaseModelConfigParser(ABC):
         req[BaseModelConfigParser.METRIC_BW_IPT].value = metric_bw_ipt
         req[BaseModelConfigParser.METRIC_BW_OPT].value = metric_bw_opt
 
+    def set_op_sum_req(
+        self, layer_entry: dict[str, Number], num_elem: int, num_tensors: int, torch_dtype: str
+    ) -> None:
+        metric_compute: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value))
+            if layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value is not None
+            else 0
+        )
+        metric_bw_wgt: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value is not None
+            else 0
+        )
+        metric_bw_ipt: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value is not None
+            else 0
+        )
+        metric_bw_opt: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value is not None
+            else 0
+        )
+
+        metric_compute += num_elem * (num_tensors - 1)
+        metric_bw_ipt += num_elem * torch_dtype_width(torch_dtype) * num_tensors
+        metric_bw_opt += num_elem * torch_dtype_width(torch_dtype)
+
+        layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value = metric_compute
+        layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value = metric_bw_wgt
+        layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value = metric_bw_ipt
+        layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value = metric_bw_opt
+
+    def set_op_rope_req(
+        self, layer_entry: dict[str, Number], token_dims: int, n_tokens: int, torch_dtype: str
+    ) -> None:
+        """
+        In summary, there are 3 FLOPs on average for each element in a token representation.
+
+        References:
+        - Llama reference implementation: https://github.com/meta-llama/llama/blob/689c7f261b9c5514636ecc3c5fefefcbb3e6eed7/llama/model.py#L132
+        - vLLM implementation: https://github.com/vllm-project/vllm/blob/dc1440cf9f8f6233a3c464e1a01daa12207f8680/csrc/pos_encoding_kernels.cu#L37
+        """
+
+        metric_compute: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value))
+            if layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value is not None
+            else 0
+        )
+        metric_bw_wgt: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value is not None
+            else 0
+        )
+        metric_bw_ipt: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value is not None
+            else 0
+        )
+        metric_bw_opt: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value is not None
+            else 0
+        )
+
+        metric_compute += token_dims * 3 * n_tokens
+        metric_bw_ipt += token_dims * n_tokens * torch_dtype_width(torch_dtype)
+        metric_bw_opt += token_dims * n_tokens * torch_dtype_width(torch_dtype)
+
+        layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value = metric_compute
+        layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value = metric_bw_wgt
+        layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value = metric_bw_ipt
+        layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value = metric_bw_opt
+
+    def set_op_rmsnorm_req(
+        self, layer_entry: dict[str, Number], hidden_size: int, n_tokens: int, torch_dtype: str
+    ) -> None:
+        """
+        Example Implementation from Llama:
+
+        ```python
+        def rmsnorm(x, eps):
+            def _norm(y):
+                return y * torch.rsqrt(y.pow(2).mean(-1, keepdim=True) + eps)
+
+            return _norm(x.float()).type_as(x)
+
+        class RMSNorm(torch.nn.Module):
+            def __init__(self, dim: int, eps: float = 1e-6):
+                super().__init__()
+                self.eps = eps
+                self.weight = nn.Parameter(torch.ones(dim))
+
+            def forward(self, x):
+                return rmsnorm(x, self.eps) * self.weight
+        ```
+
+        FLOPs Breakdown (assumming hidden_size = d):
+        - Square the input values: d
+        - Sum the squared values: d - 1
+        - Calculate average and add constant epsilon: 2
+        - Square root: 1
+        - Divide each element by RMS (normalization): d
+        - Multiply by constant gamma: d
+
+        References:
+        - PyTorch Document: https://docs.pytorch.org/docs/stable/generated/torch.nn.modules.normalization.RMSNorm.html
+        - Llama Reference Implementation: https://github.com/meta-llama/llama-models/blob/f3d16d734f4de7d5bb7427705399e350da5e200f/models/llama4/model.py#L27
+        """
+
+        metric_compute: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value))
+            if layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value is not None
+            else 0
+        )
+        metric_bw_wgt: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value is not None
+            else 0
+        )
+        metric_bw_ipt: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value is not None
+            else 0
+        )
+        metric_bw_opt: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value is not None
+            else 0
+        )
+
+        metric_compute += (hidden_size * 4 + 2) * n_tokens
+        metric_bw_wgt += (hidden_size + 1) * torch_dtype_width(torch_dtype)
+        metric_bw_ipt += hidden_size * n_tokens * torch_dtype_width(torch_dtype)
+        metric_bw_opt += hidden_size * n_tokens * torch_dtype_width(torch_dtype)
+
+        layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value = metric_compute
+        layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value = metric_bw_wgt
+        layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value = metric_bw_ipt
+        layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value = metric_bw_opt
+
+    def set_op_actmul_req(
+        self,
+        layer_entry: dict[str, Number],
+        intermediate_size: int,
+        n_tokens: int,
+        act_flops: int,
+        torch_dtype: str,
+    ) -> None:
+        """
+        Fuse the activation function (i.e., SiLU) and element-wise multiplication against the outputs of Gate/Up projection in Llama FFN:
+
+        ```python
+        class FeedForward(nn.Module):
+            def forward(self, x):
+                x = F.silu(F.linear(x, self.w1.weight)) * F.linear(x, self.w3.weight)
+                out = F.linear(x, self.w2.weight)
+                if self.do_reduce:
+                    return reduce_from_model_parallel_region(out)
+                return out
+        ```
+
+        Reference implementation in vLLM:
+
+        ```cpp
+        template <typename scalar_t, scalar_t (*ACT_FN)(const scalar_t&),
+                  bool act_first>
+        __device__ __forceinline__ scalar_t compute(const scalar_t& x,
+                                                    const scalar_t& y) {
+          return act_first ? ACT_FN(x) * y : x * ACT_FN(y);
+        }
+        // Activation and gating kernel template.
+
+        template <typename scalar_t, scalar_t (*ACT_FN)(const scalar_t&),
+                  bool act_first>
+        __global__ void act_and_mul_kernel(
+            scalar_t* __restrict__ out,          // [..., d]
+            const scalar_t* __restrict__ input,  // [..., 2, d]
+            const int d) {
+          const int64_t token_idx = blockIdx.x;
+          for (int64_t idx = threadIdx.x; idx < d; idx += blockDim.x) {
+            const scalar_t x = VLLM_LDG(&input[token_idx * 2 * d + idx]);
+            const scalar_t y = VLLM_LDG(&input[token_idx * 2 * d + d + idx]);
+            out[token_idx * d + idx] = compute<scalar_t, ACT_FN, act_first>(x, y);
+          }
+        }
+        ```
+
+        References:
+        - Llama Reference Implementation: https://github.com/meta-llama/llama-models/blob/f3d16d734f4de7d5bb7427705399e350da5e200f/models/llama4/ffn.py#L47
+        - vLLM Implementation: https://github.com/vllm-project/vllm/blob/84ab4feb7e994ee6c692957e6d80a528af072e49/csrc/activation_kernels.cu#L12
+        """
+
+        metric_compute: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value))
+            if layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value is not None
+            else 0
+        )
+        metric_bw_wgt: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value is not None
+            else 0
+        )
+        metric_bw_ipt: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value is not None
+            else 0
+        )
+        metric_bw_opt: int = (
+            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value))
+            if layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value is not None
+            else 0
+        )
+
+        metric_compute += (act_flops + 1) * intermediate_size + n_tokens
+        metric_bw_ipt += intermediate_size * n_tokens * 2 * torch_dtype_width(torch_dtype)
+        metric_bw_opt += intermediate_size * n_tokens * torch_dtype_width(torch_dtype)
+
+        layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value = metric_compute
+        layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value = metric_bw_wgt
+        layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value = metric_bw_ipt
+        layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value = metric_bw_opt
+
     def calc_total(self) -> dict[str, dict[str, Number]]:
         n_blocks: int = self.get_num_blocks()
         req_dict: dict[str, dict[str, Number]] = self.hw_req_by_layers.copy()
@@ -132,14 +395,12 @@ class BaseModelConfigParser(ABC):
             total[key].value = 0
 
         # Accumulate the total values of all layers in a block
-        for item in req_dict.values():
+        for layer, item in req_dict.items():
             for key in total.keys():
                 if item[key].value is not None:
-                    total[key].value = cast(int, total[key].value) + cast(int, item[key].value)
-
-        # Multipli each metric with the number of blocks
-        for key in total.keys():
-            total[key].value = cast(int, total[key].value) * n_blocks
+                    total[key].value = cast(int, total[key].value) + cast(
+                        int, item[key].value
+                    ) * self.get_layer_num_blocks(layer)
 
         # Insert `total` into `req_dict`
         req_dict[f"Total ({n_blocks} Blocks)"] = total

@@ -1,4 +1,10 @@
-from .base import BaseModelConfigParser, Number, TransformerMode, torch_dtype_width
+from .base import (
+    BaseModelConfigParser,
+    Number,
+    TransformerMode,
+    act_flops,
+    torch_dtype_width,
+)
 
 
 class Llama4ConfigParser(BaseModelConfigParser):
@@ -29,6 +35,19 @@ class Llama4ConfigParser(BaseModelConfigParser):
             case TransformerMode.Vision:
                 return self.model_conf["vision_config"]["num_hidden_layers"]
 
+    def get_layer_num_blocks(self, layer: str) -> int:
+        match self.query_conf.t_mode:
+            case TransformerMode.Text:
+                if "Ffn - RoutedExp" in layer:
+                    return (
+                        self.get_num_blocks()
+                        // self.model_conf["text_config"]["interleave_moe_layer_step"]
+                    )
+                else:
+                    return self.get_num_blocks()
+            case TransformerMode.Vision:
+                return self.get_num_blocks()
+
     @property
     def hw_req_by_layers(self) -> dict[str, dict[str, Number]]:
         if self._hw_req_by_layers is not None:
@@ -42,12 +61,25 @@ class Llama4ConfigParser(BaseModelConfigParser):
             case TransformerMode.Text:
                 text_config: dict = self.model_conf["text_config"]
 
+                self.set_op_rmsnorm_req(
+                    layer_entry=req_dict["Attn - RMSNorm"],
+                    hidden_size=text_config["hidden_size"],
+                    n_tokens=sum(self.query_conf.n_input_tokens),
+                    torch_dtype=text_config["torch_dtype"],
+                )
                 self.set_op_proj_req(
                     req=req_dict["Attn - QKV_Proj"],
                     dim_m=sum(self.query_conf.n_input_tokens),
                     dim_n=text_config["head_dim"]
                     * (text_config["num_attention_heads"] + text_config["num_key_value_heads"] * 2),
                     dim_k=text_config["hidden_size"],
+                    torch_dtype=text_config["torch_dtype"],
+                )
+                self.set_op_rope_req(
+                    layer_entry=req_dict["Attn - RoPE"],
+                    token_dims=text_config["head_dim"]
+                    * (text_config["num_attention_heads"] + text_config["num_key_value_heads"]),
+                    n_tokens=sum(self.query_conf.n_input_tokens),
                     torch_dtype=text_config["torch_dtype"],
                 )
                 self.set_text_sdpa_req(req=req_dict["Attn - SDPA"])
@@ -58,7 +90,19 @@ class Llama4ConfigParser(BaseModelConfigParser):
                     dim_k=text_config["hidden_size"],
                     torch_dtype=text_config["torch_dtype"],
                 )
+                self.set_op_sum_req(
+                    layer_entry=req_dict["Attn - ResidualAdd"],
+                    num_elem=sum(self.query_conf.n_input_tokens) * text_config["hidden_size"],
+                    num_tensors=2,
+                    torch_dtype=text_config["torch_dtype"],
+                )
 
+                self.set_op_rmsnorm_req(
+                    layer_entry=req_dict["Ffn - RMSNorm"],
+                    hidden_size=text_config["hidden_size"],
+                    n_tokens=sum(self.query_conf.n_input_tokens),
+                    torch_dtype=text_config["torch_dtype"],
+                )
                 self.set_op_proj_req(
                     req=req_dict["Ffn - Router"],
                     dim_m=sum(self.query_conf.n_input_tokens),
@@ -66,20 +110,30 @@ class Llama4ConfigParser(BaseModelConfigParser):
                     dim_k=text_config["hidden_size"],
                     torch_dtype=text_config["torch_dtype"],
                 )
-                self.set_op_proj_req(
-                    req=req_dict["Ffn - RoutedExp_GateUp_Proj"],
-                    dim_m=sum(self.query_conf.n_input_tokens),
-                    dim_n=text_config["intermediate_size"] * 2,
-                    dim_k=text_config["hidden_size"],
-                    torch_dtype=text_config["torch_dtype"],
-                )
-                self.set_op_proj_req(
-                    req=req_dict["Ffn - RoutedExp_Down_Proj"],
-                    dim_m=sum(self.query_conf.n_input_tokens),
-                    dim_n=text_config["hidden_size"],
-                    dim_k=text_config["intermediate_size"],
-                    torch_dtype=text_config["torch_dtype"],
-                )
+
+                for _ in range(text_config["num_experts_per_tok"]):
+                    self.set_op_proj_req(
+                        req=req_dict["Ffn - RoutedExp_GateUp_Proj"],
+                        dim_m=sum(self.query_conf.n_input_tokens),
+                        dim_n=text_config["intermediate_size"] * 2,
+                        dim_k=text_config["hidden_size"],
+                        torch_dtype=text_config["torch_dtype"],
+                    )
+                    self.set_op_actmul_req(
+                        layer_entry=req_dict["Ffn - RoutedExp_ActMul"],
+                        intermediate_size=text_config["intermediate_size"],
+                        n_tokens=sum(self.query_conf.n_input_tokens),
+                        act_flops=act_flops(text_config["hidden_act"]),
+                        torch_dtype=text_config["torch_dtype"],
+                    )
+                    self.set_op_proj_req(
+                        req=req_dict["Ffn - RoutedExp_Down_Proj"],
+                        dim_m=sum(self.query_conf.n_input_tokens),
+                        dim_n=text_config["hidden_size"],
+                        dim_k=text_config["intermediate_size"],
+                        torch_dtype=text_config["torch_dtype"],
+                    )
+
                 self.set_op_proj_req(
                     req=req_dict["Ffn - SharedExp_GateUp_Proj"],
                     dim_m=sum(self.query_conf.n_input_tokens),
@@ -87,11 +141,30 @@ class Llama4ConfigParser(BaseModelConfigParser):
                     dim_k=text_config["hidden_size"],
                     torch_dtype=text_config["torch_dtype"],
                 )
+                self.set_op_actmul_req(
+                    layer_entry=req_dict["Ffn - SharedExp_ActMul"],
+                    intermediate_size=text_config["intermediate_size"],
+                    n_tokens=sum(self.query_conf.n_input_tokens),
+                    act_flops=act_flops(text_config["hidden_act"]),
+                    torch_dtype=text_config["torch_dtype"],
+                )
                 self.set_op_proj_req(
                     req=req_dict["Ffn - SharedExp_Down_Proj"],
                     dim_m=sum(self.query_conf.n_input_tokens),
                     dim_n=text_config["hidden_size"],
                     dim_k=text_config["intermediate_size"],
+                    torch_dtype=text_config["torch_dtype"],
+                )
+                self.set_op_sum_req(
+                    layer_entry=req_dict["Ffn - RoutedSharedExpAdd"],
+                    num_elem=sum(self.query_conf.n_input_tokens) * text_config["hidden_size"],
+                    num_tensors=2,
+                    torch_dtype=text_config["torch_dtype"],
+                )
+                self.set_op_sum_req(
+                    layer_entry=req_dict["Ffn - ResidualAdd"],
+                    num_elem=sum(self.query_conf.n_input_tokens) * text_config["hidden_size"],
+                    num_tensors=2,
                     torch_dtype=text_config["torch_dtype"],
                 )
 
