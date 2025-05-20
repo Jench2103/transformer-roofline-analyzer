@@ -1,6 +1,6 @@
 # Transformer Roofline Calculator
 
-**Transformer Roofline Calculator** is a CLI tool that estimates the compute (FLOPs) and memory bandwidth requirements of each layer—and the entire model—for transformer architectures, using HuggingFace `config.json` files. It is particularly useful for analyzing hardware resource demands and performance trade-offs during model inference.
+**Transformer Roofline Calculator** is a CLI tool that estimates the compute (FLOPs) and memory bandwidth requirements of each layer—and the entire model—for transformer architectures, using Hugging Face `config.json` files. It is particularly useful for analyzing hardware resource demands and performance trade-offs during model inference.
 
 ## ✨ Features
 
@@ -22,7 +22,7 @@ This project uses [Poetry](https://python-poetry.org/) for dependency management
 
 #### Requirements
 - Python ≥ 3.10
-- Poetry
+- Poetry ≥ 2.0.0
 
 #### Setup
 
@@ -41,16 +41,20 @@ eval $(poetry env activate)
 ### Usage
 
 ```shell
-./transformer_roofline.py [OPTIONS] <config_path>
+./transformer_roofline.py [OPTIONS] -- <config_path>
 ```
 
-#### Example
+#### Example: Single Query
+
+Analyze a single query with 1,048,576 cached tokens (in KV cache) and 1 input token:
 
 ```shell
-./transformer_roofline.py --cached-tokens 1048576 --input-tokens 1 Llama-4-Scout-17B-16E-config.json
+./transformer_roofline.py --cached-tokens 1048576 --input-tokens 1 -- Llama-4-Scout-17B-16E-config.json
 ```
 
-> **Note**: The `Llama-4-Scout-17B-16E-config.json` file must be provided by the user. You can download it from the corresponding model repository on Hugging Face. The file should conform to the standard HuggingFace `config.json` format.
+> **Note**: The `Llama-4-Scout-17B-16E-config.json` file must be provided by the user. You can download it from the corresponding model repository on [Hugging Face](https://huggingface.co/). The file should conform to the standard Hugging Face `config.json` format.
+
+Sample output:
 
 ```
 | Node                        |       Compute |   Bandwidth (Weight) |   Bandwidth (Input) |   Bandwidth (Output) |   Operational Intensity |
@@ -58,6 +62,22 @@ eval $(poetry env activate)
 | Attn - QKV_Proj             |  73.39 MFLOPs |            70.00 MiB |           10.00 KiB |            14.00 KiB |     999.76 mFLOPs/Bytes |
 ...
 | Total (48 Blocks)           | 648.63 GFLOPs |            28.13 GiB |          192.00 GiB |             5.53 MiB |        2.74 FLOPs/Bytes |
+```
+
+#### Example: Multiple Queries with Varying Tokens
+
+Analyze two queries with different numbers of cached and input tokens:
+
+```shell
+./transformer_roofline.py --cached-tokens 1048576 1024 --input-tokens 1 1 -- Llama-4-Scout-17B-16E-config.json
+```
+
+#### Example: Batched Queries with Identical Token Counts
+
+Analyze two queries with the same number of cached and input tokens:
+
+```shell
+./transformer_roofline.py --cached-tokens 1024 --input-tokens 1 --batch-size 2 -- Llama-4-Scout-17B-16E-config.json
 ```
 
 #### Help Message
