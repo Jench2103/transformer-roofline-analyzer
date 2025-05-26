@@ -150,6 +150,7 @@ class BaseModelConfigParser(ABC):
                                             to its hardware metrics.
     """
 
+    METRIC_NUM_BLOCKS: Final[str] = "Block Count"
     METRIC_COMPUTE: Final[str] = "Compute"
     METRIC_BW_IPT: Final[str] = "Bandwidth (Input)"
     METRIC_BW_WGT: Final[str] = "Bandwidth (Weight)"
@@ -217,6 +218,7 @@ class BaseModelConfigParser(ABC):
             default `Number` objects.
         """
         return {
+            BaseModelConfigParser.METRIC_NUM_BLOCKS: Number("", ""),
             BaseModelConfigParser.METRIC_COMPUTE: Number("FLOPs", "!.2h"),
             BaseModelConfigParser.METRIC_BW_WGT: Number("B", "!.2k"),
             BaseModelConfigParser.METRIC_BW_IPT: Number("B", "!.2k"),
@@ -498,6 +500,13 @@ class BaseModelConfigParser(ABC):
         req_dict: dict[str, dict[str, Number]] = self.hw_req_by_layers.copy()
         total: dict[str, Number] = self.new_req_dict()
 
+        # Remove the layers that do not present in any blocks
+        not_present_layers: list[str] = [
+            layer for layer in req_dict.keys() if self.get_layer_num_blocks(layer) == 0
+        ]
+        for layer in not_present_layers:
+            req_dict.pop(layer)
+
         # Initialize all items in `total`
         for key in total.keys():
             total[key].value = 0
@@ -554,6 +563,15 @@ class BaseModelConfigParser(ABC):
             for node, metrics in self.calc_roofline(self.calc_total()).items()
         ]
 
+        # Calculate and show the number of transformer blocks that contain each layer
+        for layer_row in rows:
+            if layer_row["Node"] != "" and "Total" not in layer_row["Node"]:
+                layer_row["Block Count"] = (
+                    f"{self.get_layer_num_blocks(layer_row["Node"])} / {self.get_num_blocks()}"
+                )
+            else:
+                layer_row["Block Count"] = "N/A"
+
         # Convert all numerical values in the rows to strings for uniform formatting
         rows = [{k: str(v) if isinstance(v, Number) else v for k, v in row.items()} for row in rows]
 
@@ -561,7 +579,7 @@ class BaseModelConfigParser(ABC):
         rows = rows[0:-1] + [{"Node": "", **self.new_req_dict()}] + [rows[-1]]
 
         # Set column alignment: "Node" column is left-aligned; metric columns are right-aligned
-        colalign = ["left"] + ["right"] * (len(self.new_req_dict()) + 1)
+        colalign = ["left"] + ["center"] + ["right"] * (len(self.new_req_dict()))
 
         # Print the table using tabulate with GitHub-style formatting
         print(tabulate(rows, headers="keys", tablefmt="github", colalign=colalign))

@@ -9,24 +9,32 @@ from .base import (
 
 class Llama4ConfigParser(BaseModelConfigParser):
     def get_layer_list(self) -> list[str]:
-        return [
-            "Attn - RMSNorm",
-            "Attn - QKV_Proj",
-            "Attn - RoPE",
-            "Attn - SDPA",
-            "Attn - O_Proj",
-            "Attn - ResidualAdd",
-            "Ffn - RMSNorm",
-            "Ffn - Router",
-            "Ffn - RoutedExp_GateUp_Proj",
-            "Ffn - RoutedExp_ActMul",
-            "Ffn - RoutedExp_Down_Proj",
-            "Ffn - SharedExp_GateUp_Proj",
-            "Ffn - SharedExp_ActMul",
-            "Ffn - SharedExp_Down_Proj",
-            "Ffn - RoutedSharedExpAdd",
-            "Ffn - ResidualAdd",
-        ]
+        match self.query_conf.t_mode:
+            case TransformerMode.Text:
+                return [
+                    "Attn - RMSNorm",
+                    "Attn - QKV_Proj",
+                    "Attn - RoPE",
+                    "Attn - SDPA",
+                    "Attn - O_Proj",
+                    "Attn - ResidualAdd",
+                    "Ffn - RMSNorm",
+                    "Ffn - Router",
+                    "Ffn - RoutedExp_GateUp_Proj",
+                    "Ffn - RoutedExp_ActMul",
+                    "Ffn - RoutedExp_Down_Proj",
+                    "Ffn - SharedExp_GateUp_Proj",
+                    "Ffn - SharedExp_ActMul",
+                    "Ffn - SharedExp_Down_Proj",
+                    "Ffn - RoutedSharedExpAdd",
+                    "Ffn - NonMoE_GateUp_Proj",
+                    "Ffn - NonMoE_ActMul",
+                    "Ffn - NonMoE_Down_Proj",
+                    "Ffn - ResidualAdd",
+                ]
+
+            case TransformerMode.Vision:
+                raise NotImplementedError
 
     def get_num_blocks(self) -> int:
         match self.query_conf.t_mode:
@@ -38,8 +46,17 @@ class Llama4ConfigParser(BaseModelConfigParser):
     def get_layer_num_blocks(self, layer: str) -> int:
         match self.query_conf.t_mode:
             case TransformerMode.Text:
-                if "Ffn - RoutedExp" in layer:
+                if (
+                    "Ffn - RoutedExp" in layer
+                    or "Ffn - SharedExp" in layer
+                    or "Ffn - RoutedShared" in layer
+                ):
                     return (
+                        self.get_num_blocks()
+                        // self.model_conf["text_config"]["interleave_moe_layer_step"]
+                    )
+                elif "Ffn - NonMoE" in layer:
+                    return self.get_num_blocks() - (
                         self.get_num_blocks()
                         // self.model_conf["text_config"]["interleave_moe_layer_step"]
                     )
@@ -161,6 +178,29 @@ class Llama4ConfigParser(BaseModelConfigParser):
                     num_tensors=2,
                     torch_dtype=text_config["torch_dtype"],
                 )
+
+                self.set_op_proj_req(
+                    layer_entry=req_dict["Ffn - NonMoE_GateUp_Proj"],
+                    dim_m=sum(self.query_conf.n_input_tokens),
+                    dim_n=text_config["intermediate_size_mlp"] * 2,
+                    dim_k=text_config["hidden_size"],
+                    torch_dtype=text_config["torch_dtype"],
+                )
+                self.set_op_actmul_req(
+                    layer_entry=req_dict["Ffn - NonMoE_ActMul"],
+                    intermediate_size=text_config["intermediate_size_mlp"],
+                    n_tokens=sum(self.query_conf.n_input_tokens),
+                    act_flops=act_flops(text_config["hidden_act"]),
+                    torch_dtype=text_config["torch_dtype"],
+                )
+                self.set_op_proj_req(
+                    layer_entry=req_dict["Ffn - NonMoE_Down_Proj"],
+                    dim_m=sum(self.query_conf.n_input_tokens),
+                    dim_n=text_config["hidden_size"],
+                    dim_k=text_config["intermediate_size_mlp"],
+                    torch_dtype=text_config["torch_dtype"],
+                )
+
                 self.set_op_sum_req(
                     layer_entry=req_dict["Ffn - ResidualAdd"],
                     num_elem=sum(self.query_conf.n_input_tokens) * text_config["hidden_size"],

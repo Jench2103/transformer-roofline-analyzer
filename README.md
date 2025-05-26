@@ -57,11 +57,11 @@ Analyze a single query with 1,048,576 cached tokens (in KV cache) and 1 input to
 Sample output:
 
 ```
-| Node                        |       Compute |   Bandwidth (Weight) |   Bandwidth (Input) |   Bandwidth (Output) |   Operational Intensity |
-|-----------------------------|---------------|----------------------|---------------------|----------------------|-------------------------|
-| Attn - QKV_Proj             |  73.39 MFLOPs |            70.00 MiB |           10.00 KiB |            14.00 KiB |     999.76 mFLOPs/Bytes |
+| Node                        |  Block Count  |       Compute |   Bandwidth (Weight) |   Bandwidth (Input) |   Bandwidth (Output) |   Operational Intensity |
+|-----------------------------|---------------|---------------|----------------------|---------------------|----------------------|-------------------------|
+| Attn - QKV_Proj             |    48 / 48    |  73.39 MFLOPs |            70.00 MiB |           10.00 KiB |            14.00 KiB |     999.76 mFLOPs/Bytes |
 ...
-| Total (48 Blocks)           | 648.63 GFLOPs |            28.13 GiB |          192.00 GiB |             5.53 MiB |        2.74 FLOPs/Bytes |
+| Total (48 Blocks)           |      N/A      | 648.63 GFLOPs |            28.13 GiB |          192.00 GiB |             5.53 MiB |        2.74 FLOPs/Bytes |
 ```
 
 #### Example: Multiple Queries with Varying Tokens
