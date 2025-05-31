@@ -61,7 +61,9 @@ Sample output:
 |-----------------------------|---------------|---------------|----------------------|---------------------|----------------------|-------------------------|
 | Attn - QKV_Proj             |    48 / 48    |  73.39 MFLOPs |            70.00 MiB |           10.00 KiB |            14.00 KiB |     999.76 mFLOPs/Bytes |
 ...
-| Total (48 Blocks)           |      N/A      | 648.63 GFLOPs |            28.13 GiB |          192.00 GiB |             5.53 MiB |        2.74 FLOPs/Bytes |
+| Total (48 Blocks)           |      N/A      | 648.64 GFLOPs |            28.13 GiB |          192.01 GiB |             9.94 MiB |        2.74 FLOPs/Bytes |
+
+Minimum Storage Requirement: (Weights) 28.13 GiB + (KV-cache) 192.00 GiB = 220.13 GiB
 ```
 
 #### Example: Multiple Queries with Varying Tokens
@@ -107,7 +109,9 @@ options:
 
 ## 📍 Roadmap
 
+- [x] Support model type `llama4` for models using earlier LLaMA architectures.
 - [ ] Support model type `llama` for models using earlier LLaMA architectures (e.g., LLaMA-2, LLaMA-3).
+- [x] Support calculating the minimum storage requirement based on model configurations and given prompt-related parameters.
 
 ## 🤝 Contributing
 

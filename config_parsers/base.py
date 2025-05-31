@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Final, Optional, cast
@@ -65,7 +67,7 @@ class Number:
                    Returns an empty string if the value is None.
     """
 
-    def __init__(self, unit: str, formatter: str, value: Optional[float] = None):
+    def __init__(self, unit: str, formatter: str, value: Optional[float] = None) -> None:
         self.value: Optional[float] = value
         self.unit: str = unit
         self.formatter: str = formatter
@@ -75,6 +77,18 @@ class Number:
             return format(Float(self.value), self.formatter) + self.unit
         else:
             return ""
+
+    def __add__(self, other: Number) -> Number:
+        if isinstance(other, Number) and self.unit == other.unit:
+            if self.value is not None or other.value is not None:
+                new_value: float = (self.value if self.value is not None else 0.0) + (
+                    other.value if other.value is not None else 0.0
+                )
+                return Number(unit=self.unit, formatter=self.formatter, value=new_value)
+            else:
+                return Number(unit=self.unit, formatter=self.formatter)
+        else:
+            raise NotImplementedError
 
 
 class QueryConfig:
@@ -186,6 +200,21 @@ class BaseModelConfigParser(ABC):
 
         Returns:
             int: Number of transformer blocks containing the layer.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_kvcache_size(self) -> int:
+        """
+        Returns the estimated total size of the key-value (KV) cache used during inference
+        for the entire model, based on the configured context length and batch size.
+
+        The KV cache stores intermediate attention keys and values for each transformer layer,
+        and its memory footprint grows proportionally with the number of layers, attention heads,
+        hidden dimensions, batch size, and context length.
+
+        Returns:
+            int: Total size of the KV cache in bytes.
         """
         raise NotImplementedError()
 
@@ -572,6 +601,10 @@ class BaseModelConfigParser(ABC):
             else:
                 layer_row["Block Count"] = "N/A"
 
+        # Calculate storage capacity requirement
+        wgt_size: Number = rows[-1][BaseModelConfigParser.METRIC_BW_WGT]
+        kv_size: Number = Number("B", "!.2k", self.get_kvcache_size())
+
         # Convert all numerical values in the rows to strings for uniform formatting
         rows = [{k: str(v) if isinstance(v, Number) else v for k, v in row.items()} for row in rows]
 
@@ -583,3 +616,9 @@ class BaseModelConfigParser(ABC):
 
         # Print the table using tabulate with GitHub-style formatting
         print(tabulate(rows, headers="keys", tablefmt="github", colalign=colalign))
+        print()
+
+        # Print storage capacity requirement
+        print(
+            f"Minimum Storage Requirement: (Weights) {wgt_size} + (KV-cache) {kv_size} = {wgt_size + kv_size}"
+        )

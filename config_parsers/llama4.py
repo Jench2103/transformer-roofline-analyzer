@@ -65,6 +65,30 @@ class Llama4ConfigParser(BaseModelConfigParser):
             case TransformerMode.Vision:
                 return self.get_num_blocks()
 
+    def get_kvcache_size(self) -> int:
+        kvcache_size_per_block: int = 0
+
+        match self.query_conf.t_mode:
+            case TransformerMode.Text:
+                text_config: dict = self.model_conf["text_config"]
+                batch_size: int = len(self.query_conf.n_cached_tokens)
+                tensor_kv_dims: int = text_config["head_dim"] * text_config["num_key_value_heads"]
+                torch_dtype: str = text_config["torch_dtype"]
+
+                for query_idx in range(batch_size):
+                    kv_seq_len: int = (
+                        self.query_conf.n_cached_tokens[query_idx]
+                        + self.query_conf.n_input_tokens[query_idx]
+                    )
+                    kvcache_size_per_block += (
+                        kv_seq_len * (tensor_kv_dims * 2) * torch_dtype_width(torch_dtype)
+                    )
+
+            case TransformerMode.Vision:
+                raise NotImplementedError
+
+        return kvcache_size_per_block * self.get_num_blocks()
+
     @property
     def hw_req_by_layers(self) -> dict[str, dict[str, Number]]:
         if self._hw_req_by_layers is not None:
