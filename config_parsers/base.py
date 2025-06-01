@@ -63,8 +63,22 @@ class Number:
         formatter (str): A format string used for pretty-printing the value (e.g., '!.2h').
 
     Methods:
-        __str__(): Returns a formatted string representation of the number with its unit.
-                   Returns an empty string if the value is None.
+        __init__(unit: str, formatter: str, value: Optional[float] = None) -> None:
+            Initializes a Number with the given unit, formatter, and optional value.
+
+        __str__() -> str:
+            Returns a formatted string representation of the number with its unit.
+            Returns an empty string if the value is None.
+
+        __add__(other: Number) -> Number:
+            Adds two Number instances with the same unit. If one or both values are None,
+            treats them as zero. Raises NotImplementedError if units differ.
+
+        get_value_float() -> float:
+            Returns the value as a float. If value is None, returns 0.0.
+
+        get_value_int() -> int:
+            Returns the value as an integer. If value is None, returns 0.
     """
 
     def __init__(self, unit: str, formatter: str, value: Optional[float] = None) -> None:
@@ -81,14 +95,18 @@ class Number:
     def __add__(self, other: Number) -> Number:
         if isinstance(other, Number) and self.unit == other.unit:
             if self.value is not None or other.value is not None:
-                new_value: float = (self.value if self.value is not None else 0.0) + (
-                    other.value if other.value is not None else 0.0
-                )
+                new_value: float = self.get_value_float() + other.get_value_float()
                 return Number(unit=self.unit, formatter=self.formatter, value=new_value)
             else:
                 return Number(unit=self.unit, formatter=self.formatter)
         else:
             raise NotImplementedError
+
+    def get_value_float(self) -> float:
+        return cast(float, self.value) if self.value is not None else 0
+
+    def get_value_int(self) -> int:
+        return int(self.get_value_float())
 
 
 class QueryConfig:
@@ -262,26 +280,10 @@ class BaseModelConfigParser(ABC):
         dim_k: int,
         torch_dtype: str,
     ) -> None:
-        metric_compute: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value))
-            if layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value is not None
-            else 0
-        )
-        metric_bw_wgt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value is not None
-            else 0
-        )
-        metric_bw_ipt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value is not None
-            else 0
-        )
-        metric_bw_opt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value is not None
-            else 0
-        )
+        metric_compute: int = layer_entry[BaseModelConfigParser.METRIC_COMPUTE].get_value_int()
+        metric_bw_wgt: int = layer_entry[BaseModelConfigParser.METRIC_BW_WGT].get_value_int()
+        metric_bw_ipt: int = layer_entry[BaseModelConfigParser.METRIC_BW_IPT].get_value_int()
+        metric_bw_opt: int = layer_entry[BaseModelConfigParser.METRIC_BW_OPT].get_value_int()
 
         metric_compute += dim_m * dim_n * (dim_k * 2 - 1)
         metric_bw_wgt += (dim_k * dim_n) * torch_dtype_width(torch_dtype)
@@ -296,26 +298,10 @@ class BaseModelConfigParser(ABC):
     def set_op_sum_req(
         self, layer_entry: dict[str, Number], num_elem: int, num_tensors: int, torch_dtype: str
     ) -> None:
-        metric_compute: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value))
-            if layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value is not None
-            else 0
-        )
-        metric_bw_wgt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value is not None
-            else 0
-        )
-        metric_bw_ipt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value is not None
-            else 0
-        )
-        metric_bw_opt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value is not None
-            else 0
-        )
+        metric_compute: int = layer_entry[BaseModelConfigParser.METRIC_COMPUTE].get_value_int()
+        metric_bw_wgt: int = layer_entry[BaseModelConfigParser.METRIC_BW_WGT].get_value_int()
+        metric_bw_ipt: int = layer_entry[BaseModelConfigParser.METRIC_BW_IPT].get_value_int()
+        metric_bw_opt: int = layer_entry[BaseModelConfigParser.METRIC_BW_OPT].get_value_int()
 
         metric_compute += num_elem * (num_tensors - 1)
         metric_bw_ipt += num_elem * torch_dtype_width(torch_dtype) * num_tensors
@@ -337,26 +323,10 @@ class BaseModelConfigParser(ABC):
         - vLLM implementation: https://github.com/vllm-project/vllm/blob/dc1440cf9f8f6233a3c464e1a01daa12207f8680/csrc/pos_encoding_kernels.cu#L37
         """
 
-        metric_compute: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value))
-            if layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value is not None
-            else 0
-        )
-        metric_bw_wgt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value is not None
-            else 0
-        )
-        metric_bw_ipt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value is not None
-            else 0
-        )
-        metric_bw_opt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value is not None
-            else 0
-        )
+        metric_compute: int = layer_entry[BaseModelConfigParser.METRIC_COMPUTE].get_value_int()
+        metric_bw_wgt: int = layer_entry[BaseModelConfigParser.METRIC_BW_WGT].get_value_int()
+        metric_bw_ipt: int = layer_entry[BaseModelConfigParser.METRIC_BW_IPT].get_value_int()
+        metric_bw_opt: int = layer_entry[BaseModelConfigParser.METRIC_BW_OPT].get_value_int()
 
         metric_compute += token_dims * 3 * n_tokens
         metric_bw_ipt += token_dims * n_tokens * torch_dtype_width(torch_dtype)
@@ -403,26 +373,10 @@ class BaseModelConfigParser(ABC):
         - Llama Reference Implementation: https://github.com/meta-llama/llama-models/blob/f3d16d734f4de7d5bb7427705399e350da5e200f/models/llama4/model.py#L27
         """
 
-        metric_compute: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value))
-            if layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value is not None
-            else 0
-        )
-        metric_bw_wgt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value is not None
-            else 0
-        )
-        metric_bw_ipt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value is not None
-            else 0
-        )
-        metric_bw_opt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value is not None
-            else 0
-        )
+        metric_compute: int = layer_entry[BaseModelConfigParser.METRIC_COMPUTE].get_value_int()
+        metric_bw_wgt: int = layer_entry[BaseModelConfigParser.METRIC_BW_WGT].get_value_int()
+        metric_bw_ipt: int = layer_entry[BaseModelConfigParser.METRIC_BW_IPT].get_value_int()
+        metric_bw_opt: int = layer_entry[BaseModelConfigParser.METRIC_BW_OPT].get_value_int()
 
         metric_compute += (hidden_size * 4 + 2) * n_tokens
         metric_bw_wgt += (hidden_size + 1) * torch_dtype_width(torch_dtype)
@@ -486,26 +440,10 @@ class BaseModelConfigParser(ABC):
         - vLLM Implementation: https://github.com/vllm-project/vllm/blob/84ab4feb7e994ee6c692957e6d80a528af072e49/csrc/activation_kernels.cu#L12
         """
 
-        metric_compute: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value))
-            if layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value is not None
-            else 0
-        )
-        metric_bw_wgt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value is not None
-            else 0
-        )
-        metric_bw_ipt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value is not None
-            else 0
-        )
-        metric_bw_opt: int = (
-            int(cast(float, layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value))
-            if layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value is not None
-            else 0
-        )
+        metric_compute: int = layer_entry[BaseModelConfigParser.METRIC_COMPUTE].get_value_int()
+        metric_bw_wgt: int = layer_entry[BaseModelConfigParser.METRIC_BW_WGT].get_value_int()
+        metric_bw_ipt: int = layer_entry[BaseModelConfigParser.METRIC_BW_IPT].get_value_int()
+        metric_bw_opt: int = layer_entry[BaseModelConfigParser.METRIC_BW_OPT].get_value_int()
 
         metric_compute += (act_flops + 1) * intermediate_size + n_tokens
         metric_bw_ipt += intermediate_size * n_tokens * 2 * torch_dtype_width(torch_dtype)
@@ -543,10 +481,9 @@ class BaseModelConfigParser(ABC):
         # Accumulate the total values of all layers in a block
         for layer, item in req_dict.items():
             for key in total.keys():
-                if item[key].value is not None:
-                    total[key].value = cast(int, total[key].value) + cast(
-                        int, item[key].value
-                    ) * self.get_layer_num_blocks(layer)
+                total[key].value = total[key].get_value_int() + (
+                    item[key].get_value_int() * self.get_layer_num_blocks(layer)
+                )
 
         # Insert `total` into `req_dict`
         req_dict[f"Total ({n_blocks} Blocks)"] = total
@@ -572,10 +509,11 @@ class BaseModelConfigParser(ABC):
                 and metrics[BaseModelConfigParser.METRIC_BW_WGT].value is not None
                 and metrics[BaseModelConfigParser.METRIC_BW_IPT].value is not None
             ):
-                compute_req: int = cast(int, metrics[BaseModelConfigParser.METRIC_COMPUTE].value)
-                bandwidth_req: int = cast(
-                    int, metrics[BaseModelConfigParser.METRIC_BW_WGT].value
-                ) + cast(int, metrics[BaseModelConfigParser.METRIC_BW_IPT].value)
+                compute_req: int = metrics[BaseModelConfigParser.METRIC_COMPUTE].get_value_int()
+                bandwidth_req: int = (
+                    metrics[BaseModelConfigParser.METRIC_BW_WGT].get_value_int()
+                    + metrics[BaseModelConfigParser.METRIC_BW_IPT].get_value_int()
+                )
                 metrics[BaseModelConfigParser.METRIC_OI].value = compute_req / bandwidth_req
 
         return req_dict_cp
