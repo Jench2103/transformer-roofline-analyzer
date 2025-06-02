@@ -4,9 +4,11 @@ import argparse
 import json
 
 from config_parsers.base import QueryConfig
+from config_parsers.llama import LlamaConfigParser
 from config_parsers.llama4 import Llama4ConfigParser
 
 PARSER_REGISTRY = {
+    "llama": LlamaConfigParser,
     "llama4": Llama4ConfigParser,
     # Extend here for other model types
 }

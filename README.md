@@ -5,6 +5,7 @@
 ## ✨ Features
 
 - Parses HuggingFace-compatible `config.json` with the following model types:
+  - `llama`
   - `llama4`
 - Reports:
   - Compute (FLOPs)
@@ -110,7 +111,7 @@ options:
 ## 📍 Roadmap
 
 - [x] Support model type `llama4` for models using earlier LLaMA architectures.
-- [ ] Support model type `llama` for models using earlier LLaMA architectures (e.g., LLaMA-2, LLaMA-3).
+- [x] Support model type `llama` for models using earlier LLaMA architectures (e.g., LLaMA-2, LLaMA-3).
 - [x] Support calculating the minimum storage requirement based on model configurations and given prompt-related parameters.
 
 ## 🤝 Contributing

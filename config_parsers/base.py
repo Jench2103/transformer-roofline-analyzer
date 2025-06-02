@@ -208,7 +208,6 @@ class BaseModelConfigParser(ABC):
         """
         raise NotImplementedError()
 
-    @abstractmethod
     def get_layer_num_blocks(self, layer: str) -> int:
         """
         Returns the number of transformer blocks that include the specified layer.
@@ -219,7 +218,7 @@ class BaseModelConfigParser(ABC):
         Returns:
             int: Number of transformer blocks containing the layer.
         """
-        raise NotImplementedError()
+        return self.get_num_blocks()
 
     @abstractmethod
     def get_kvcache_size(self) -> int:
