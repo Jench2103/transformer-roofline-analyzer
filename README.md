@@ -1,6 +1,6 @@
-# Transformer Roofline Calculator
+# Transformer Roofline Analyzer
 
-**Transformer Roofline Calculator** is a CLI tool that estimates the compute (FLOPs) and memory bandwidth requirements of each layer—and the entire model—for transformer architectures, using Hugging Face `config.json` files. It is particularly useful for analyzing hardware resource demands and performance trade-offs during model inference.
+**Transformer Roofline Analyzer** is a CLI tool that estimates the compute (FLOPs) and memory bandwidth requirements of each layer—and the entire model—for transformer architectures, using Hugging Face `config.json` files. It is particularly useful for analyzing hardware resource demands and performance trade-offs during model inference.
 
 ## ✨ Features
 
@@ -30,8 +30,8 @@ This project uses [Poetry](https://python-poetry.org/) for dependency management
 
 ```shell
 # Clone the repo
-git clone https://github.com/Jench2103/transformer-roofline-calculator.git
-cd transformer-roofline-calculator
+git clone https://github.com/Jench2103/transformer-roofline-analyzer.git
+cd transformer-roofline-analyzer
 
 # Install dependencies using Poetry
 poetry install
@@ -43,7 +43,7 @@ eval $(poetry env activate)
 ### Usage
 
 ```shell
-./transformer_roofline.py [OPTIONS] -- <config_path>
+./transformer_roofline_analyzer [OPTIONS] -- <config_path>
 ```
 
 #### Example: Single Query
@@ -51,7 +51,7 @@ eval $(poetry env activate)
 Analyze a single query with 1,048,576 cached tokens (in KV cache) and 1 input token:
 
 ```shell
-./transformer_roofline.py --cached-tokens 1048576 --input-tokens 1 -- Llama-4-Scout-17B-16E-config.json
+./transformer_roofline_analyzer --cached-tokens 1048576 --input-tokens 1 -- Llama-4-Scout-17B-16E-config.json
 ```
 
 > **Note**: The `Llama-4-Scout-17B-16E-config.json` file must be provided by the user. You can download it from the corresponding model repository on [Hugging Face](https://huggingface.co/). The file should conform to the standard Hugging Face `config.json` format.
@@ -73,7 +73,7 @@ Minimum Storage Requirement: (Weights) 28.13 GiB + (KV-cache) 192.00 GiB = 220.1
 Analyze two queries with different numbers of cached and input tokens:
 
 ```shell
-./transformer_roofline.py --cached-tokens 1048576 1024 --input-tokens 1 1 -- Llama-4-Scout-17B-16E-config.json
+./transformer_roofline_analyzer --cached-tokens 1048576 1024 --input-tokens 1 1 -- Llama-4-Scout-17B-16E-config.json
 ```
 
 #### Example: Batched Queries with Identical Token Counts
@@ -81,13 +81,13 @@ Analyze two queries with different numbers of cached and input tokens:
 Analyze two queries with the same number of cached and input tokens:
 
 ```shell
-./transformer_roofline.py --cached-tokens 1024 --input-tokens 1 --batch-size 2 -- Llama-4-Scout-17B-16E-config.json
+./transformer_roofline_analyzer --cached-tokens 1024 --input-tokens 1 --batch-size 2 -- Llama-4-Scout-17B-16E-config.json
 ```
 
 #### Help Message
 
 ```
-usage: transformer_roofline.py [-h] [--cached-tokens CACHED_TOKENS [CACHED_TOKENS ...]] [--input-tokens INPUT_TOKENS [INPUT_TOKENS ...]] [--batch-size BATCH_SIZE] config_path
+usage: transformer_roofline_analyzer [-h] [--cached-tokens CACHED_TOKENS [CACHED_TOKENS ...]] [--input-tokens INPUT_TOKENS [INPUT_TOKENS ...]] [--batch-size BATCH_SIZE] config_path
 
 positional arguments:
   config_path           Path to model config.json

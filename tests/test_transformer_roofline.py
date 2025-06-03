@@ -46,7 +46,7 @@ def test_transformer_roofline(case_id, cmd_opts, config_file, expected_output_fi
     # Build command
     cmd: list[str] = [
         "python3",
-        "transformer_roofline.py",
+        "transformer_roofline_analyzer",
         *cached_tokens,
         *input_tokens,
         *batch_size,
