@@ -1,0 +1,38 @@
+[
+  {
+    "CommandOptions": {
+      "cached-tokens": 0,
+      "input-tokens": 2048,
+      "batch-size": 100
+    },
+    "Config": "config-0.json",
+    "Output": "output-0-0.txt"
+  },
+  {
+    "CommandOptions": {
+      "cached-tokens": 1024,
+      "input-tokens": 1,
+      "batch-size": 100
+    },
+    "Config": "config-0.json",
+    "Output": "output-0-1.txt"
+  },
+  {
+    "CommandOptions": {
+      "cached-tokens": 0,
+      "input-tokens": 2048,
+      "batch-size": 100
+    },
+    "Config": "config-1.json",
+    "Output": "output-1-0.txt"
+  },
+  {
+    "CommandOptions": {
+      "cached-tokens": 1024,
+      "input-tokens": 1,
+      "batch-size": 100
+    },
+    "Config": "config-0.json",
+    "Output": "output-0-1.txt"
+  }
+]

@@ -5,12 +5,13 @@
 ## ✨ Features
 
 - Parses HuggingFace-compatible `config.json` with the following model types:
-  - `llama`
-  - `llama4`
+  - `llama` ([schema](https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/configuration_llama.py))
+  - `llama4` ([schema](https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama4/configuration_llama4.py))
 - Reports:
   - Compute (FLOPs)
   - Bandwidth: weights, inputs, outputs
   - Operational intensity (FLOPs/Byte)
+  - Minimum data storage requirement
 - Layer-wise and model-level summaries.
 - Supports batching and KV-cache estimation.
 - Useful for performance roofline modeling.
