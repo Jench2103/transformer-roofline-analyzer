@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Final, Optional, cast
+from typing import Final, Optional, Union, cast
 
 from prefixed import Float
 from tabulate import tabulate
@@ -99,6 +99,14 @@ class Number:
                 return Number(unit=self.unit, formatter=self.formatter, value=new_value)
             else:
                 return Number(unit=self.unit, formatter=self.formatter)
+        else:
+            raise NotImplementedError
+
+    def __radd__(self, other: Union[int, float]) -> Number:
+        if isinstance(other, (int, float)):
+            return Number(
+                unit=self.unit, formatter=self.formatter, value=self.get_value_float() + other
+            )
         else:
             raise NotImplementedError
 
@@ -234,6 +242,9 @@ class BaseModelConfigParser(ABC):
             int: Total size of the KV cache in bytes.
         """
         raise NotImplementedError()
+
+    def get_extra_storage_req(self) -> list[tuple[str, Number]]:
+        return []
 
     @property
     @abstractmethod
@@ -556,6 +567,12 @@ class BaseModelConfigParser(ABC):
         print()
 
         # Print storage capacity requirement
+        storage_req_list: list[tuple[str, Number]] = [
+            ("Weights", wgt_size),
+            ("KV-cache", kv_size),
+        ] + self.get_extra_storage_req()
         print(
-            f"Minimum Storage Requirement: (Weights) {wgt_size} + (KV-cache) {kv_size} = {wgt_size + kv_size}"
+            "Minimum Storage Requirement: "
+            + " + ".join(f"({k}) {v}" for k, v in storage_req_list)
+            + f" = {sum(v for _, v in storage_req_list)}"
         )

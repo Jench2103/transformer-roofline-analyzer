@@ -89,6 +89,32 @@ class Llama4ConfigParser(BaseModelConfigParser):
 
         return kvcache_size_per_block * self.get_num_blocks()
 
+    def get_extra_storage_req(self) -> list[tuple[str, Number]]:
+        req_list: list[tuple[str, Number]] = []
+
+        match self.query_conf.t_mode:
+            case TransformerMode.Text:
+                text_config: dict = self.model_conf["text_config"]
+
+                # Additional Expert Weights
+                exp_size: int = (
+                    text_config["hidden_size"]
+                    * text_config["intermediate_size"]
+                    * torch_dtype_width(text_config["torch_dtype"])
+                    * 3
+                )
+                extra_exp_cnt: int = (text_config["num_local_experts"] - 1) * (
+                    self.get_num_blocks() // text_config["interleave_moe_layer_step"]
+                )
+                req_list.append(
+                    ("Additional Expert Weights", Number("B", "!.2k", exp_size * extra_exp_cnt))
+                )
+
+            case TransformerMode.Vision:
+                raise NotImplementedError
+
+        return req_list
+
     @property
     def hw_req_by_layers(self) -> dict[str, dict[str, Number]]:
         if self._hw_req_by_layers is not None:
