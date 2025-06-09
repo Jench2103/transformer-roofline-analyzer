@@ -244,6 +244,26 @@ class BaseModelConfigParser(ABC):
         raise NotImplementedError()
 
     def get_extra_storage_req(self) -> list[tuple[str, Number]]:
+        """
+        Returns a list of additional storage requirements specific to the model configuration.
+
+        This function computes extra memory needs beyond the standard model weights and KV-cache.
+        These may include, for example, additional expert weights used in Mixture-of-Experts (MoE)
+        transformer variants, depending on the model's mode (e.g., text or vision) and its internal
+        architectural parameters.
+
+        Each returned item is a tuple of the form (description, size), where:
+            - `description` is a string describing the type of additional storage (e.g., "Additional Expert Weights")
+            - `size` is a `Number` instance representing the size in bytes.
+
+        Note:
+            All `Number` instances in the returned list must be initialized with:
+                - unit = "B"         # for bytes
+                - formatter = "!.2k" # for human-readable formatting with two decimal places and unit suffixes (e.g., KiB, MiB)
+
+        Returns:
+            list[tuple[str, Number]]: A list of (description, Number) pairs representing extra storage needs.
+        """
         return []
 
     @property
