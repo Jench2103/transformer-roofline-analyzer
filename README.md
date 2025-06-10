@@ -23,6 +23,7 @@
 This project uses [Poetry](https://python-poetry.org/) for dependency management.
 
 #### Requirements
+
 - Python ≥ 3.10
 - Poetry ≥ 2.0.0
 
@@ -58,7 +59,7 @@ Analyze a single query with 1,048,576 cached tokens (in KV cache) and 1 input to
 
 Sample output:
 
-```
+```text
 | Node                        |  Block Count  |       Compute |   Bandwidth (Weight) |   Bandwidth (Input) |   Bandwidth (Output) |   Operational Intensity |
 |-----------------------------|---------------|---------------|----------------------|---------------------|----------------------|-------------------------|
 | Attn - QKV_Proj             |    48 / 48    |  73.39 MFLOPs |            70.00 MiB |           10.00 KiB |            14.00 KiB |     999.76 mFLOPs/Bytes |
@@ -86,7 +87,7 @@ Analyze two queries with the same number of cached and input tokens:
 
 #### Help Message
 
-```
+```text
 usage: transformer_roofline_analyzer [-h] [--cached-tokens CACHED_TOKENS [CACHED_TOKENS ...]] [--input-tokens INPUT_TOKENS [INPUT_TOKENS ...]] [--batch-size BATCH_SIZE] config_path
 
 positional arguments:
