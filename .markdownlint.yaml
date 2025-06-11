@@ -1,0 +1,8 @@
+default: true
+
+# MD013/line-length - Line length
+MD013: false
+
+MD024:
+  # Allow heading duplication if under different parent headings
+  siblings_only: true
