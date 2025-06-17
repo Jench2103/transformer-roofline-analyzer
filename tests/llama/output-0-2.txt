@@ -1,17 +1,17 @@
 | Node               |  Block Count  |       Compute |   Bandwidth (Weight) |   Bandwidth (Input) |   Bandwidth (Output) |   Operational Intensity |
 |--------------------|---------------|---------------|----------------------|---------------------|----------------------|-------------------------|
-| Attn - RMSNorm     |    32 / 32    |   1.64 MFLOPs |             8.00 KiB |          800.00 KiB |           800.00 KiB |        1.98 FLOPs/Bytes |
-| Attn - QKV_Proj    |    32 / 32    |   5.03 GFLOPs |            48.00 MiB |          800.00 KiB |             1.17 MiB |       98.39 FLOPs/Bytes |
-| Attn - RoPE        |    32 / 32    |   1.54 MFLOPs |               0.00 B |         1000.00 KiB |          1000.00 KiB |        1.50 FLOPs/Bytes |
+| Attn - RMSNorm     |    32 / 32    |   1.64 MFLOPs |             8.00 KiB |          800.00 KiB |           800.00 KiB |     995.15 mFLOPs/Bytes |
+| Attn - QKV_Proj    |    32 / 32    |   5.03 GFLOPs |            48.00 MiB |          800.00 KiB |             1.17 MiB |       96.08 FLOPs/Bytes |
+| Attn - RoPE        |    32 / 32    |   1.54 MFLOPs |               0.00 B |         1000.00 KiB |          1000.00 KiB |     750.00 mFLOPs/Bytes |
 | Attn - SDPA        |    32 / 32    |   1.05 GFLOPs |               0.00 B |          401.17 MiB |           800.00 KiB |        2.49 FLOPs/Bytes |
-| Attn - O_Proj      |    32 / 32    |   3.36 GFLOPs |            32.00 MiB |          800.00 KiB |           800.00 KiB |       97.60 FLOPs/Bytes |
-| Attn - ResidualAdd |    32 / 32    | 409.60 kFLOPs |               0.00 B |            1.56 MiB |           800.00 KiB |     250.00 mFLOPs/Bytes |
-| Ffn - RMSNorm      |    32 / 32    |   1.64 MFLOPs |             8.00 KiB |          800.00 KiB |           800.00 KiB |        1.98 FLOPs/Bytes |
-| Ffn - GateUp_Proj  |    32 / 32    |  23.49 GFLOPs |           224.00 MiB |          800.00 KiB |             5.47 MiB |       99.64 FLOPs/Bytes |
-| Ffn - ActMul       |    32 / 32    |  71.78 kFLOPs |               0.00 B |            5.47 MiB |             2.73 MiB |      12.52 mFLOPs/Bytes |
-| Ffn - Down_Proj    |    32 / 32    |  11.74 GFLOPs |           112.00 MiB |            2.73 MiB |           800.00 KiB |       97.61 FLOPs/Bytes |
-| Ffn - ResidualAdd  |    32 / 32    | 409.60 kFLOPs |               0.00 B |            1.56 MiB |           800.00 KiB |     250.00 mFLOPs/Bytes |
+| Attn - O_Proj      |    32 / 32    |   3.36 GFLOPs |            32.00 MiB |          800.00 KiB |           800.00 KiB |       95.33 FLOPs/Bytes |
+| Attn - ResidualAdd |    32 / 32    | 409.60 kFLOPs |               0.00 B |            1.56 MiB |           800.00 KiB |     166.67 mFLOPs/Bytes |
+| Ffn - RMSNorm      |    32 / 32    |   1.64 MFLOPs |             8.00 KiB |          800.00 KiB |           800.00 KiB |     995.15 mFLOPs/Bytes |
+| Ffn - GateUp_Proj  |    32 / 32    |  23.49 GFLOPs |           224.00 MiB |          800.00 KiB |             5.47 MiB |       97.27 FLOPs/Bytes |
+| Ffn - ActMul       |    32 / 32    |  71.78 kFLOPs |               0.00 B |            5.47 MiB |             2.73 MiB |       8.34 mFLOPs/Bytes |
+| Ffn - Down_Proj    |    32 / 32    |  11.74 GFLOPs |           112.00 MiB |            2.73 MiB |           800.00 KiB |       96.95 FLOPs/Bytes |
+| Ffn - ResidualAdd  |    32 / 32    | 409.60 kFLOPs |               0.00 B |            1.56 MiB |           800.00 KiB |     166.67 mFLOPs/Bytes |
 |                    |               |               |                      |                     |                      |                         |
-| Total (32 Blocks)  |      N/A      |   1.43 TFLOPs |            13.00 GiB |           13.04 GiB |           506.25 MiB |       51.12 FLOPs/Bytes |
+| Total (32 Blocks)  |      N/A      |   1.43 TFLOPs |            13.00 GiB |           13.04 GiB |           506.25 MiB |       50.17 FLOPs/Bytes |
 
 Minimum Storage Requirement: (Weights) 13.00 GiB + (KV-cache) 12.51 GiB = 25.51 GiB

@@ -538,11 +538,13 @@ class BaseModelConfigParser(ABC):
                 metrics[BaseModelConfigParser.METRIC_COMPUTE].value is not None
                 and metrics[BaseModelConfigParser.METRIC_BW_WGT].value is not None
                 and metrics[BaseModelConfigParser.METRIC_BW_IPT].value is not None
+                and metrics[BaseModelConfigParser.METRIC_BW_OPT].value is not None
             ):
                 compute_req: int = metrics[BaseModelConfigParser.METRIC_COMPUTE].get_value_int()
                 bandwidth_req: int = (
                     metrics[BaseModelConfigParser.METRIC_BW_WGT].get_value_int()
                     + metrics[BaseModelConfigParser.METRIC_BW_IPT].get_value_int()
+                    + metrics[BaseModelConfigParser.METRIC_BW_OPT].get_value_int()
                 )
                 metrics[BaseModelConfigParser.METRIC_OI].value = compute_req / bandwidth_req
 

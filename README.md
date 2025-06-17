@@ -61,7 +61,7 @@ Sample output:
 ```
 | Node                        |  Block Count  |       Compute |   Bandwidth (Weight) |   Bandwidth (Input) |   Bandwidth (Output) |   Operational Intensity |
 |-----------------------------|---------------|---------------|----------------------|---------------------|----------------------|-------------------------|
-| Attn - QKV_Proj             |    48 / 48    |  73.39 MFLOPs |            70.00 MiB |           10.00 KiB |            14.00 KiB |     999.76 mFLOPs/Bytes |
+| Attn - QKV_Proj             |    48 / 48    |  73.39 MFLOPs |            70.00 MiB |           10.00 KiB |            14.00 KiB |     999.57 mFLOPs/Bytes |
 ...
 | Total (48 Blocks)           |      N/A      | 648.64 GFLOPs |            28.13 GiB |          192.01 GiB |             9.94 MiB |        2.74 FLOPs/Bytes |
 
