@@ -65,7 +65,7 @@ Sample output:
 ...
 | Total (48 Blocks)           |      N/A      | 648.64 GFLOPs |            28.13 GiB |          192.01 GiB |             9.94 MiB |        2.74 FLOPs/Bytes |
 
-Minimum Storage Requirement: (Weights) 28.13 GiB + (KV-cache) 192.00 GiB = 220.13 GiB
+Minimum Storage Requirement: (Weights) 28.13 GiB + (KV-cache) 192.00 GiB + (Additional Expert Weights) 168.75 GiB = 388.88 GiB
 ```
 
 #### Example: Multiple Queries with Varying Tokens

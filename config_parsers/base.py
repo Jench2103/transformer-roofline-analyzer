@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Final, Optional, cast
+from typing import Final, Optional, Union, cast
 
 from prefixed import Float
 from tabulate import tabulate
@@ -99,6 +99,14 @@ class Number:
                 return Number(unit=self.unit, formatter=self.formatter, value=new_value)
             else:
                 return Number(unit=self.unit, formatter=self.formatter)
+        else:
+            raise NotImplementedError
+
+    def __radd__(self, other: Union[int, float]) -> Number:
+        if isinstance(other, (int, float)):
+            return Number(
+                unit=self.unit, formatter=self.formatter, value=self.get_value_float() + other
+            )
         else:
             raise NotImplementedError
 
@@ -234,6 +242,29 @@ class BaseModelConfigParser(ABC):
             int: Total size of the KV cache in bytes.
         """
         raise NotImplementedError()
+
+    def get_extra_storage_req(self) -> list[tuple[str, Number]]:
+        """
+        Returns a list of additional storage requirements specific to the model configuration.
+
+        This function computes extra memory needs beyond the standard model weights and KV-cache.
+        These may include, for example, additional expert weights used in Mixture-of-Experts (MoE)
+        transformer variants, depending on the model's mode (e.g., text or vision) and its internal
+        architectural parameters.
+
+        Each returned item is a tuple of the form (description, size), where:
+            - `description` is a string describing the type of additional storage (e.g., "Additional Expert Weights")
+            - `size` is a `Number` instance representing the size in bytes.
+
+        Note:
+            All `Number` instances in the returned list must be initialized with:
+                - unit = "B"         # for bytes
+                - formatter = "!.2k" # for human-readable formatting with two decimal places and unit suffixes (e.g., KiB, MiB)
+
+        Returns:
+            list[tuple[str, Number]]: A list of (description, Number) pairs representing extra storage needs.
+        """
+        return []
 
     @property
     @abstractmethod
@@ -556,6 +587,12 @@ class BaseModelConfigParser(ABC):
         print()
 
         # Print storage capacity requirement
+        storage_req_list: list[tuple[str, Number]] = [
+            ("Weights", wgt_size),
+            ("KV-cache", kv_size),
+        ] + self.get_extra_storage_req()
         print(
-            f"Minimum Storage Requirement: (Weights) {wgt_size} + (KV-cache) {kv_size} = {wgt_size + kv_size}"
+            "Minimum Storage Requirement: "
+            + " + ".join(f"({k}) {v}" for k, v in storage_req_list)
+            + f" = {sum(v for _, v in storage_req_list)}"
         )
