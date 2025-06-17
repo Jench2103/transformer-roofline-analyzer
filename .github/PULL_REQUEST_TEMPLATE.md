@@ -1,11 +1,3 @@
-# 📌 Pull Request Title
-
-<!--
-A concise title summarizing your change.
-Follow the commit message convention:
-"Fix:", "Feat:", "Docs:", "Refactor:", "Chore:", etc.
--->
-
 ## 📝 Summary
 
 <!--
@@ -16,6 +8,18 @@ What does this PR do and why?
 -->
 
 Fixes: #<ISSUE_NUMBER> (if applicable)
+
+## 🛠️ Implementation Details
+
+<!--
+How is the change implemented?
+- Describe the main technical approach and logic.
+- Mention any new classes, functions, APIs, or modules introduced.
+- Explain why this specific approach was chosen over alternatives.
+- Include any algorithms, formulas, or patterns used.
+- Note any assumptions, constraints, or performance considerations.
+- Call out any significant refactors or changes to existing code structure.
+-->
 
 ## 🔍 Types of Changes
 
@@ -34,28 +38,14 @@ How should reviewers verify your changes?
 - Commands, test files, and expected outputs.
 -->
 
-## ✅ Commit and Merge
-
-- [ ] My commit messages follow the convention (e.g., `fix:`, `feat:`, `docs:`, `style:`, `refactor:`, `chore:`)
-- [ ] I prefer this PR to be **squashed** before merging (the PR title will become the final commit message)
-
-<!-- Optional: add a note about your preferred squashing rules -->
-
-## 📦 Branch Sync
-
-- [ ] I have rebased my branch on top of the latest `main` (or target branch)
-  <!-- Rebasing avoids merge commits and ensures a clean linear history -->
-
-> ℹ️ **Recommendation:** Please rebase your branch on top of the latest target branch (e.g., `main`) before submitting. This keeps the commit history clean and reduces merge conflicts.
-
 ## ✅ Checklist
 
 - [ ] My code follows the project's style guidelines
+- [ ] My commit messages follow the convention (e.g., `fix:`, `feat:`, `docs:`, `style:`, `refactor:`, `chore:`)
 - [ ] I have self-reviewed my changes
 - [ ] I have commented on non-obvious logic
 - [ ] I have updated the relevant documentation
 - [ ] I have added or updated tests as needed
-- [ ] I have rebased my branch onto the latest `main` (or target branch) after making my last commit
 - [ ] All tests pass locally
 - [ ] All dependent changes are merged or tracked
 
@@ -64,3 +54,5 @@ How should reviewers verify your changes?
 <!--
 Design choices, limitations, trade-offs, or other information helpful for reviewers
 -->
+
+<!-- markdownlint-disable-file MD041 -->
