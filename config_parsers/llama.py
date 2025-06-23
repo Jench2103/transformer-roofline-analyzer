@@ -54,6 +54,19 @@ class LlamaConfigParser(BaseModelConfigParser):
 
         return kvcache_size_per_block * self.get_num_blocks()
 
+    def get_extra_storage_req(self) -> list[tuple[str, Number]]:
+        req_list: list[tuple[str, Number]] = []
+
+        # Embedding Table
+        emb_table_size: int = (
+            self.model_conf["hidden_size"]
+            * self.model_conf["vocab_size"]
+            * torch_dtype_width(self.model_conf["torch_dtype"])
+        )
+        req_list.append(("Embedding Table", Number("B", "!.2k", emb_table_size)))
+
+        return req_list
+
     @property
     def hw_req_by_layers(self) -> dict[str, dict[str, Number]]:
         if self._hw_req_by_layers is not None:

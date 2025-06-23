@@ -1,6 +1,7 @@
 import json
 import subprocess
 from pathlib import Path
+from subprocess import CompletedProcess
 from typing import Any
 
 import pytest
@@ -25,6 +26,7 @@ def discover_test_cases() -> list[tuple[str, str, str, str]]:
                     str(output_path),
                 )
             )
+
     return test_cases
 
 
@@ -33,7 +35,13 @@ def discover_test_cases() -> list[tuple[str, str, str, str]]:
     discover_test_cases(),
     ids=lambda x: x,  # Show the case_id in test output
 )
-def test_transformer_roofline(case_id, cmd_opts, config_file, expected_output_file) -> None:
+def test_transformer_roofline(
+    case_id: str,
+    cmd_opts: dict[str, Any],
+    config_file: str,
+    expected_output_file: str,
+    print_actual_output: bool,
+) -> None:
     # Collect options
     cached_tokens: list[str] = ["--cached-tokens", *str(cmd_opts["cached-tokens"]).split()]
     input_tokens: list[str] = ["--input-tokens", *str(cmd_opts["input-tokens"]).split()]
@@ -55,15 +63,29 @@ def test_transformer_roofline(case_id, cmd_opts, config_file, expected_output_fi
     ]
 
     # Run command
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result: CompletedProcess[str] = subprocess.run(cmd, capture_output=True, text=True)
     actual_output: str = result.stdout.strip()
 
-    # Load expected output
-    with open(expected_output_file) as f:
-        expected_output: str = f.read().strip()
+    if print_actual_output:
+        # If the flag is set, just print the actual output for this case
+        print()
+        print(f"--- Actual Output for {case_id} ---")
+        print(actual_output)
+        print("-----------------------------------")
 
-    # Check exit status
-    assert result.returncode == 0, f"[{case_id}] Command failed with stderr:\n{result.stderr}"
+        # No assertions, so this test will "PASS" if the command ran without error.
+        # You might still want to check returncode even in this mode, or skip it.
+        # For simplicity, keeping the returncode check.
+        assert result.returncode == 0, f"[{case_id}] Command failed with stderr:\n{result.stderr}"
 
-    # Check output
-    assert actual_output == expected_output, f"[{case_id}] Output mismatch"
+    else:
+        # Normal behavior: check exit status and then compare output
+        # Load expected output
+        with open(expected_output_file) as f:
+            expected_output: str = f.read().strip()
+
+        # Check exit status
+        assert result.returncode == 0, f"[{case_id}] Command failed with stderr:\n{result.stderr}"
+
+        # Check output
+        assert actual_output == expected_output, f"[{case_id}] Output mismatch"
