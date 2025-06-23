@@ -103,9 +103,9 @@ class Llama4ConfigParser(BaseModelConfigParser):
                     * torch_dtype_width(text_config["torch_dtype"])
                     * 3
                 )
-                extra_exp_cnt: int = (text_config["num_local_experts"] - 1) * (
-                    self.get_num_blocks() // text_config["interleave_moe_layer_step"]
-                )
+                extra_exp_cnt: int = (
+                    text_config["num_local_experts"] - text_config["num_experts_per_tok"]
+                ) * (self.get_num_blocks() // text_config["interleave_moe_layer_step"])
                 req_list.append(
                     ("Additional Experts", Number("B", "!.2k", exp_size * extra_exp_cnt))
                 )
