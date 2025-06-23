@@ -96,7 +96,7 @@ class Llama4ConfigParser(BaseModelConfigParser):
             case TransformerMode.Text:
                 text_config: dict = self.model_conf["text_config"]
 
-                # Additional Expert Weights
+                # Additional Experts
                 exp_size: int = (
                     text_config["hidden_size"]
                     * text_config["intermediate_size"]
@@ -107,8 +107,16 @@ class Llama4ConfigParser(BaseModelConfigParser):
                     self.get_num_blocks() // text_config["interleave_moe_layer_step"]
                 )
                 req_list.append(
-                    ("Additional Expert Weights", Number("B", "!.2k", exp_size * extra_exp_cnt))
+                    ("Additional Experts", Number("B", "!.2k", exp_size * extra_exp_cnt))
                 )
+
+                # Embedding Table
+                emb_table_size: int = (
+                    text_config["hidden_size"]
+                    * text_config["vocab_size"]
+                    * torch_dtype_width(text_config["torch_dtype"])
+                )
+                req_list.append(("Embedding Table", Number("B", "!.2k", emb_table_size)))
 
             case TransformerMode.Vision:
                 raise NotImplementedError

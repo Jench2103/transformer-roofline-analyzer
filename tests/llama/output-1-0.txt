@@ -14,4 +14,4 @@
 |                    |               |               |                      |                     |                      |                         |
 | Total (32 Blocks)  |      N/A      |   3.41 PFLOPs |            14.50 GiB |            1.20 TiB |             1.10 TiB |       1.34 kFLOPs/Bytes |
 
-Minimum Storage Requirement: (Weights) 14.50 GiB + (KV-cache) 100.00 GiB = 114.50 GiB
+Minimum Storage Requirement: (Weights) 14.50 GiB + (KV-cache) 100.00 GiB + (Embedding Table) 250.00 MiB = 114.74 GiB

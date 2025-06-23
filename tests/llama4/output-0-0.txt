@@ -19,4 +19,4 @@
 |                             |               |               |                      |                     |                      |                         |
 | Total (48 Blocks)           |      N/A      |   6.43 PFLOPs |            28.13 GiB |            2.31 TiB |             1.94 TiB |       1.37 kFLOPs/Bytes |
 
-Minimum Storage Requirement: (Weights) 28.13 GiB + (KV-cache) 37.50 GiB + (Additional Expert Weights) 168.75 GiB = 234.38 GiB
+Minimum Storage Requirement: (Weights) 28.13 GiB + (KV-cache) 37.50 GiB + (Additional Experts) 168.75 GiB + (Embedding Table) 1.93 GiB = 236.31 GiB
