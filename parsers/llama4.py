@@ -1,4 +1,4 @@
-from .base import (
+from core import (
     BaseModelConfigParser,
     Number,
     TransformerMode,
