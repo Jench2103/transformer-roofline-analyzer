@@ -62,8 +62,23 @@ Sample output:
 ```text
 | Node                        |  Block Count  |       Compute |   Bandwidth (Weight) |   Bandwidth (Input) |   Bandwidth (Output) |   Operational Intensity |
 |-----------------------------|---------------|---------------|----------------------|---------------------|----------------------|-------------------------|
+| Attn - RMSNorm              |    48 / 48    |  20.48 kFLOPs |            10.00 KiB |           10.00 KiB |            10.00 KiB |     666.69 mFLOPs/Bytes |
 | Attn - QKV_Proj             |    48 / 48    |  73.39 MFLOPs |            70.00 MiB |           10.00 KiB |            14.00 KiB |     999.57 mFLOPs/Bytes |
-...
+| Attn - RoPE                 |    48 / 48    |  18.43 kFLOPs |               0.00 B |           12.00 KiB |            12.00 KiB |     750.00 mFLOPs/Bytes |
+| Attn - SDPA                 |    48 / 48    |  12.88 GFLOPs |               0.00 B |            4.00 GiB |            10.00 KiB |        3.00 FLOPs/Bytes |
+| Attn - O_Proj               |    48 / 48    |  52.42 MFLOPs |            50.00 MiB |           10.00 KiB |            10.00 KiB |     999.51 mFLOPs/Bytes |
+| Attn - ResidualAdd          |    48 / 48    |   5.12 kFLOPs |               0.00 B |           20.00 KiB |            10.00 KiB |     166.67 mFLOPs/Bytes |
+| Ffn - RMSNorm               |    48 / 48    |  20.48 kFLOPs |            10.00 KiB |           10.00 KiB |            10.00 KiB |     666.69 mFLOPs/Bytes |
+| Ffn - Router                |    48 / 48    | 163.82 kFLOPs |           160.00 KiB |           10.00 KiB |              32.00 B |     940.91 mFLOPs/Bytes |
+| Ffn - RoutedExp_GateUp_Proj |    48 / 48    | 167.76 MFLOPs |           160.00 MiB |           10.00 KiB |            32.00 KiB |     999.65 mFLOPs/Bytes |
+| Ffn - RoutedExp_ActMul      |    48 / 48    |  40.96 kFLOPs |               0.00 B |           32.00 KiB |            16.00 KiB |     833.35 mFLOPs/Bytes |
+| Ffn - RoutedExp_Down_Proj   |    48 / 48    |  83.88 MFLOPs |            80.00 MiB |           16.00 KiB |            10.00 KiB |     999.62 mFLOPs/Bytes |
+| Ffn - SharedExp_GateUp_Proj |    48 / 48    | 167.76 MFLOPs |           160.00 MiB |           10.00 KiB |            32.00 KiB |     999.65 mFLOPs/Bytes |
+| Ffn - SharedExp_ActMul      |    48 / 48    |  40.96 kFLOPs |               0.00 B |           32.00 KiB |            16.00 KiB |     833.35 mFLOPs/Bytes |
+| Ffn - SharedExp_Down_Proj   |    48 / 48    |  83.88 MFLOPs |            80.00 MiB |           16.00 KiB |            10.00 KiB |     999.62 mFLOPs/Bytes |
+| Ffn - RoutedSharedExpAdd    |    48 / 48    |   5.12 kFLOPs |               0.00 B |           20.00 KiB |            10.00 KiB |     166.67 mFLOPs/Bytes |
+| Ffn - ResidualAdd           |    48 / 48    |   5.12 kFLOPs |               0.00 B |           20.00 KiB |            10.00 KiB |     166.67 mFLOPs/Bytes |
+|                             |               |               |                      |                     |                      |                         |
 | Total (48 Blocks)           |      N/A      | 648.64 GFLOPs |            28.13 GiB |          192.01 GiB |             9.94 MiB |        2.74 FLOPs/Bytes |
 
 Minimum Storage Requirement: (Weights) 28.13 GiB + (KV-cache) 192.00 GiB + (Additional Experts) 168.75 GiB + (Embedding Table) 1.93 GiB = 390.81 GiB

@@ -2,10 +2,18 @@
 
 import argparse
 import json
+import os
+import sys
 
-from config_parsers.base import QueryConfig
-from config_parsers.llama import LlamaConfigParser
-from config_parsers.llama4 import Llama4ConfigParser
+# Get the absolute path of the directory containing the current script
+# This is the project's root directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Add this directory to Python's system path so it can find internal modules
+sys.path.insert(0, script_dir)
+
+from core import QueryConfig  # noqa: E402
+from parsers import Llama4ConfigParser, LlamaConfigParser  # noqa: E402
 
 PARSER_REGISTRY = {
     "llama": LlamaConfigParser,
