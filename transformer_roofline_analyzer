@@ -54,8 +54,24 @@ def load_config(model_name_or_path: str) -> dict:
         config_dict = config.to_dict()
 
         # Add default torch_dtype if not present (HuggingFace configs don't include this)
-        if "torch_dtype" not in config_dict:
-            config_dict["torch_dtype"] = "float16"
+        # Different architectures store torch_dtype in different locations
+        architectures = config_dict.get("architectures", [])
+
+        # Handle each architecture explicitly
+        if "LlamaForCausalLM" in architectures:
+            # Llama 2/3: torch_dtype at top level
+            if "torch_dtype" not in config_dict:
+                config_dict["torch_dtype"] = "float16"
+
+        elif "Llama4ForConditionalGeneration" in architectures:
+            # Llama 4: torch_dtype in text_config
+            if "text_config" in config_dict and isinstance(config_dict["text_config"], dict):
+                if "torch_dtype" not in config_dict["text_config"]:
+                    config_dict["text_config"]["torch_dtype"] = "float16"
+
+        # Add more architectures here as needed
+        # elif "SomeOtherArchitecture" in architectures:
+        #     ...
 
         return config_dict
 
