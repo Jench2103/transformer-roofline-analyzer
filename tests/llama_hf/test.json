@@ -1,0 +1,74 @@
+[
+  {
+    "CommandOptions": {
+      "cached-tokens": 511,
+      "input-tokens": 1,
+      "batch-size": 1
+    },
+    "ModelName": "meta-llama/Llama-2-13b-hf",
+    "Output": "output-llama2-13b.txt"
+  },
+  {
+    "CommandOptions": {
+      "cached-tokens": 511,
+      "input-tokens": 1,
+      "batch-size": 1
+    },
+    "ModelName": "meta-llama/Llama-3.1-8B",
+    "Output": "output-llama31-8b.txt"
+  },
+  {
+    "CommandOptions": {
+      "cached-tokens": 511,
+      "input-tokens": 1,
+      "batch-size": 1
+    },
+    "ModelName": "meta-llama/Llama-3.1-70B",
+    "Output": "output-llama31-70b.txt"
+  },
+  {
+    "CommandOptions": {
+      "cached-tokens": 511,
+      "input-tokens": 1,
+      "batch-size": 1
+    },
+    "ModelName": "meta-llama/Llama-3.1-405B",
+    "Output": "output-llama31-405b.txt"
+  },
+  {
+    "CommandOptions": {
+      "cached-tokens": 511,
+      "input-tokens": 1,
+      "batch-size": 1
+    },
+    "ModelName": "meta-llama/Llama-3.2-1B",
+    "Output": "output-llama32-1b.txt"
+  },
+  {
+    "CommandOptions": {
+      "cached-tokens": 511,
+      "input-tokens": 1,
+      "batch-size": 1
+    },
+    "ModelName": "meta-llama/Llama-3.2-3B",
+    "Output": "output-llama32-3b.txt"
+  },
+  {
+    "CommandOptions": {
+      "cached-tokens": 511,
+      "input-tokens": 1,
+      "batch-size": 1
+    },
+    "ModelName": "meta-llama/Llama-4-Scout-17B-16E",
+    "Output": "output-llama4-scout-17b-16e.txt"
+  },
+  {
+    "CommandOptions": {
+      "cached-tokens": 511,
+      "input-tokens": 1,
+      "batch-size": 1
+    },
+    "ModelName": "meta-llama/Llama-4-Maverick-17B-128E",
+    "Output": "output-llama4-maverick-17b-128e.txt"
+  }
+]

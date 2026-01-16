@@ -422,7 +422,7 @@ class BaseModelConfigParser(ABC):
         for layer_row in rows:
             if layer_row["Node"] != "" and "Total" not in layer_row["Node"]:
                 layer_row["Block Count"] = (
-                    f"{self.get_layer_num_blocks(layer_row["Node"])} / {self.get_num_blocks()}"
+                    f"{self.get_layer_num_blocks(layer_row['Node'])} / {self.get_num_blocks()}"
                 )
             else:
                 layer_row["Block Count"] = "N/A"

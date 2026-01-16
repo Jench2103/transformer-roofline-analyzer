@@ -1,10 +1,11 @@
 # Transformer Roofline Analyzer
 
-**Transformer Roofline Analyzer** is a CLI tool that estimates the compute (FLOPs) and memory bandwidth requirements of each layer—and the entire model—for transformer architectures, using Hugging Face `config.json` files. It is particularly useful for analyzing hardware resource demands and performance trade-offs during model inference.
+**Transformer Roofline Analyzer** is a CLI tool that estimates the compute (FLOPs) and memory bandwidth requirements of each layer—and the entire model—for transformer architectures. It accepts either HuggingFace model names (e.g., `meta-llama/Llama-2-7b-hf`) or local `config.json` files. The tool is particularly useful for analyzing hardware resource demands and performance trade-offs during model inference.
 
 ## ✨ Features
 
-- Parses HuggingFace-compatible `config.json` with the following model types:
+- Accepts HuggingFace model names or local `config.json` files
+- Parses HuggingFace-compatible configurations with the following model types:
   - `llama` ([schema](https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/configuration_llama.py))
   - `llama4` ([schema](https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama4/configuration_llama4.py))
 - Reports:
@@ -44,18 +45,34 @@ eval $(poetry env activate)
 ### Usage
 
 ```shell
-./transformer_roofline_analyzer [OPTIONS] -- <config_path>
+./transformer_roofline_analyzer [OPTIONS] -- <model_name_or_config>
 ```
 
-#### Example: Single Query
+The tool accepts two types of input:
+
+1. **HuggingFace Model Names**: Automatically downloads config from HuggingFace Hub
+   - Example: `meta-llama/Llama-2-7b-hf`
+   - Requires internet connection on first use
+   - Configs are cached by the transformers library
+
+2. **Local Config Files**: Uses existing `config.json` files
+   - Example: `path/to/config.json`
+   - No internet required
+   - Useful for offline analysis or custom configs
+
+#### Example: Single Query with HuggingFace Model Name
 
 Analyze a single query with 1,048,576 cached tokens (in KV cache) and 1 input token:
 
 ```shell
-./transformer_roofline_analyzer --cached-tokens 1048576 --input-tokens 1 -- Llama-4-Scout-17B-16E-config.json
+./transformer_roofline_analyzer --cached-tokens 1048576 --input-tokens 1 -- meta-llama/Llama-2-7b-hf
 ```
 
-> **Note**: The `Llama-4-Scout-17B-16E-config.json` file must be provided by the user. You can download it from the corresponding model repository on [Hugging Face](https://huggingface.co/). The file should conform to the standard Hugging Face `config.json` format.
+#### Example: Single Query with Local Config File
+
+```shell
+./transformer_roofline_analyzer --cached-tokens 1048576 --input-tokens 1 -- Llama-4-Scout-17B-16E-config.json
+```
 
 Sample output:
 
@@ -89,7 +106,7 @@ Minimum Storage Requirement: (Weights) 28.13 GiB + (KV-cache) 192.00 GiB + (Addi
 Analyze two queries with different numbers of cached and input tokens:
 
 ```shell
-./transformer_roofline_analyzer --cached-tokens 1048576 1024 --input-tokens 1 1 -- Llama-4-Scout-17B-16E-config.json
+./transformer_roofline_analyzer --cached-tokens 1048576 1024 --input-tokens 1 1 -- meta-llama/Llama-4-Scout-17B-16E
 ```
 
 #### Example: Batched Queries with Identical Token Counts
@@ -97,16 +114,16 @@ Analyze two queries with different numbers of cached and input tokens:
 Analyze two queries with the same number of cached and input tokens:
 
 ```shell
-./transformer_roofline_analyzer --cached-tokens 1024 --input-tokens 1 --batch-size 2 -- Llama-4-Scout-17B-16E-config.json
+./transformer_roofline_analyzer --cached-tokens 1024 --input-tokens 1 --batch-size 2 -- meta-llama/Llama-4-Scout-17B-16E
 ```
 
 #### Help Message
 
 ```text
-usage: transformer_roofline_analyzer [-h] [--cached-tokens CACHED_TOKENS [CACHED_TOKENS ...]] [--input-tokens INPUT_TOKENS [INPUT_TOKENS ...]] [--batch-size BATCH_SIZE] config_path
+usage: transformer_roofline_analyzer [-h] [--cached-tokens CACHED_TOKENS [CACHED_TOKENS ...]] [--input-tokens INPUT_TOKENS [INPUT_TOKENS ...]] [--batch-size BATCH_SIZE] model_name_or_config
 
 positional arguments:
-  config_path           Path to model config.json
+  model_name_or_config  HuggingFace model name (e.g., 'meta-llama/Llama-2-7b-hf') or path to local config.json file
 
 options:
   -h, --help            show this help message and exit

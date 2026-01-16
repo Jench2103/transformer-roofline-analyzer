@@ -4,6 +4,11 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
+
+# Suppress transformers advisory warnings (e.g., missing PyTorch/TensorFlow)
+# We only use config files, not model weights, so these frameworks aren't needed
+os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
 
 # Get the absolute path of the directory containing the current script
 # This is the project's root directory
@@ -14,6 +19,75 @@ sys.path.insert(0, script_dir)
 
 from core import QueryConfig  # noqa: E402
 from parsers import Llama4ConfigParser, LlamaConfigParser  # noqa: E402
+
+
+def load_config(model_name_or_path: str) -> dict:
+    """
+    Load model config from either HuggingFace model name or local file.
+
+    Args:
+        model_name_or_path: HuggingFace model name (e.g., "meta-llama/Llama-2-7b-hf")
+                           or path to local config.json file
+
+    Returns:
+        dict: Model configuration dictionary
+
+    Examples:
+        >>> load_config("meta-llama/Llama-2-7b-hf")  # Downloads from HF
+        >>> load_config("path/to/config.json")       # Loads local file
+    """
+    # Check if input is a local file path
+    if os.path.exists(model_name_or_path):
+        path = Path(model_name_or_path)
+        if path.is_file():
+            # Load from local JSON file
+            with open(model_name_or_path) as f:
+                return json.load(f)
+        else:
+            raise ValueError(f"Path exists but is not a file: {model_name_or_path}")
+
+    # Otherwise, treat as HuggingFace model name
+    try:
+        from transformers import AutoConfig
+
+        config = AutoConfig.from_pretrained(model_name_or_path)
+        config_dict = config.to_dict()
+
+        # Add default torch_dtype if not present (HuggingFace configs don't include this)
+        # Different architectures store torch_dtype in different locations
+        architectures = config_dict.get("architectures", [])
+
+        # Handle each architecture explicitly
+        if "LlamaForCausalLM" in architectures:
+            # Llama 2/3: torch_dtype at top level
+            if "torch_dtype" not in config_dict:
+                config_dict["torch_dtype"] = "float16"
+
+        elif "Llama4ForConditionalGeneration" in architectures:
+            # Llama 4: torch_dtype in text_config
+            if "text_config" in config_dict and isinstance(config_dict["text_config"], dict):
+                if "torch_dtype" not in config_dict["text_config"]:
+                    config_dict["text_config"]["torch_dtype"] = "float16"
+
+        # Add more architectures here as needed
+        # elif "SomeOtherArchitecture" in architectures:
+        #     ...
+
+        return config_dict
+
+    except ImportError:
+        raise ImportError(
+            "transformers library is required to download configs from HuggingFace.\n"
+            "Install it with: pip install transformers"
+        )
+    except Exception as e:
+        raise ValueError(
+            f"Failed to load config from '{model_name_or_path}'.\n"
+            f"  - If this is a HuggingFace model name, check that it exists and is accessible.\n"
+            f"  - If this is a file path, check that the file exists.\n"
+            f"Original error: {e}"
+        )
+
 
 PARSER_REGISTRY = {
     "llama": LlamaConfigParser,
@@ -53,8 +127,16 @@ def compute_roofline_metrics(model_conf: dict, args: argparse.Namespace) -> None
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("config_path", help="Path to model config.json")
+    parser = argparse.ArgumentParser(
+        description="Analyze transformer model hardware requirements (compute and bandwidth)."
+    )
+    parser.add_argument(
+        "model_name_or_config",
+        help=(
+            "HuggingFace model name (e.g., 'meta-llama/Llama-2-7b-hf') "
+            "or path to local config.json file"
+        ),
+    )
     parser.add_argument(
         "--cached-tokens",
         type=int,
@@ -80,8 +162,12 @@ def main():
 
     args = parser.parse_args()
 
-    with open(args.config_path) as f:
-        config = json.load(f)
+    # Load config using new utility function
+    try:
+        config = load_config(args.model_name_or_config)
+    except Exception as e:
+        print(f"Error loading config: {e}", file=sys.stderr)
+        sys.exit(1)
 
     compute_roofline_metrics(config, args)
 

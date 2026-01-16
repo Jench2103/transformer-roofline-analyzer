@@ -8,6 +8,12 @@ import pytest
 
 
 def discover_test_cases() -> list[tuple[str, str, str, str]]:
+    """
+    Discovers test cases from test.json files.
+
+    Returns:
+        list of (case_id, cmd_opts, model_or_config, expected_output)
+    """
     test_cases: list[tuple[str, str, str, str]] = []
     test_root: Path = Path("tests")
 
@@ -16,13 +22,24 @@ def discover_test_cases() -> list[tuple[str, str, str, str]]:
             cases: list[dict[str, Any]] = json.load(f)
 
         for idx, case in enumerate(cases):
-            config_path: str = test_json.parent / case["Config"]
+            # Support both new ModelName and legacy Config field
+            if "ModelName" in case:
+                model_or_config: str = case["ModelName"]
+            elif "Config" in case:
+                # Legacy: use local config file
+                config_path: Path = test_json.parent / case["Config"]
+                model_or_config: str = str(config_path)
+            else:
+                raise ValueError(
+                    f"Test case must have either 'ModelName' or 'Config' field: {test_json}"
+                )
+
             output_path: str = test_json.parent / case["Output"]
             test_cases.append(
                 (
                     f"{test_json.parent.name}-{idx}",  # id for pytest
                     case["CommandOptions"],
-                    str(config_path),
+                    model_or_config,
                     str(output_path),
                 )
             )
@@ -31,14 +48,14 @@ def discover_test_cases() -> list[tuple[str, str, str, str]]:
 
 
 @pytest.mark.parametrize(
-    "case_id, cmd_opts, config_file, expected_output_file",
+    "case_id, cmd_opts, model_or_config, expected_output_file",
     discover_test_cases(),
     ids=lambda x: x,  # Show the case_id in test output
 )
 def test_transformer_roofline(
     case_id: str,
     cmd_opts: dict[str, Any],
-    config_file: str,
+    model_or_config: str,
     expected_output_file: str,
     print_actual_output: bool,
 ) -> None:
@@ -59,7 +76,7 @@ def test_transformer_roofline(
         *input_tokens,
         *batch_size,
         "--",
-        config_file,
+        model_or_config,
     ]
 
     # Run command
