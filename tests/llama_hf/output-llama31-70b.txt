@@ -1,0 +1,17 @@
+| Node               |  Block Count  |       Compute |   Bandwidth (Weight) |   Bandwidth (Input) |   Bandwidth (Output) |   Operational Intensity |
+|--------------------|---------------|---------------|----------------------|---------------------|----------------------|-------------------------|
+| Attn - RMSNorm     |    80 / 80    |  32.77 kFLOPs |            16.00 KiB |           16.00 KiB |            16.00 KiB |     666.68 mFLOPs/Bytes |
+| Attn - QKV_Proj    |    80 / 80    | 167.76 MFLOPs |           160.00 MiB |           16.00 KiB |            20.00 KiB |     999.72 mFLOPs/Bytes |
+| Attn - RoPE        |    80 / 80    |  27.65 kFLOPs |               0.00 B |           18.00 KiB |            18.00 KiB |     750.00 mFLOPs/Bytes |
+| Attn - SDPA        |    80 / 80    |   9.44 MFLOPs |               0.00 B |            2.02 MiB |            16.00 KiB |        4.43 FLOPs/Bytes |
+| Attn - O_Proj      |    80 / 80    | 134.21 MFLOPs |           128.00 MiB |           16.00 KiB |            16.00 KiB |     999.69 mFLOPs/Bytes |
+| Attn - ResidualAdd |    80 / 80    |   8.19 kFLOPs |               0.00 B |           32.00 KiB |            16.00 KiB |     166.67 mFLOPs/Bytes |
+| Ffn - RMSNorm      |    80 / 80    |  32.77 kFLOPs |            16.00 KiB |           16.00 KiB |            16.00 KiB |     666.68 mFLOPs/Bytes |
+| Ffn - GateUp_Proj  |    80 / 80    | 939.47 MFLOPs |           896.00 MiB |           16.00 KiB |           112.00 KiB |     999.80 mFLOPs/Bytes |
+| Ffn - ActMul       |    80 / 80    | 143.36 kFLOPs |               0.00 B |          112.00 KiB |            56.00 KiB |     833.34 mFLOPs/Bytes |
+| Ffn - Down_Proj    |    80 / 80    | 469.75 MFLOPs |           448.00 MiB |           56.00 KiB |            16.00 KiB |     999.83 mFLOPs/Bytes |
+| Ffn - ResidualAdd  |    80 / 80    |   8.19 kFLOPs |               0.00 B |           32.00 KiB |            16.00 KiB |     166.67 mFLOPs/Bytes |
+|                    |               |               |                      |                     |                      |                         |
+| Total (80 Blocks)  |      N/A      | 137.67 GFLOPs |           127.50 GiB |          187.03 MiB |            24.84 MiB |        1.00 FLOPs/Bytes |
+
+Minimum Storage Requirement: (Weights) 127.50 GiB + (KV-cache) 160.00 MiB + (Embedding Table) 1.96 GiB = 129.62 GiB

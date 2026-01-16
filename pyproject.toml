@@ -10,7 +10,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "tabulate (>=0.9.0,<0.10.0)",
-    "prefixed (>=0.9.0,<0.10.0)"
+    "prefixed (>=0.9.0,<0.10.0)",
+    "transformers (>=4.30.0,<5.0.0)"
 ]
 
 
@@ -25,6 +26,7 @@ package-mode = false
 pre-commit = "^4.2.0"
 types-tabulate = "^0.9.0.20241207"
 pytest = "^8.4.0"
+pyright = "^1.1.408"
 
 [tool.black]
 line-length = 100
