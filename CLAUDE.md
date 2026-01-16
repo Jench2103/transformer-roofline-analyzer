@@ -124,7 +124,8 @@ The codebase follows a parser-based architecture for analyzing different transfo
 1. **Base Parser Framework** ([core/base_parser.py](core/base_parser.py))
    - `BaseModelConfigParser`: Abstract base class defining the framework for all model parsers
    - Provides common methods for calculating hardware metrics (FLOPs, bandwidth, operational intensity)
-   - Includes operation-specific methods: `set_op_proj_req()`, `set_op_rope_req()`, `set_op_rmsnorm_req()`, `set_op_actmul_req()`, `set_op_sum_req()`
+   - Includes operation-specific methods: `set_op_proj_req()`, `set_op_rope_req()`, `set_op_rmsnorm_req()`, `set_op_actmul_req()`, `set_op_sum_req()`, `set_op_sdpa_req()`
+   - Provides `normalize_config()` class method for architecture-specific config defaults
    - Handles tabulated output and storage requirement calculations
 
 2. **Model-Specific Parsers** ([parsers/](parsers/))
@@ -254,8 +255,24 @@ To support a new transformer architecture:
    - `get_num_blocks()`: Extract from model config
    - `get_kvcache_size()`: Calculate based on architecture
    - `hw_req_by_layers`: Use `set_op_*` methods to populate metrics
-4. Add to `PARSER_REGISTRY` in [transformer_roofline_analyzer](transformer_roofline_analyzer)
-5. Add test cases with config files and expected outputs
+4. Optionally override:
+   - `normalize_config()`: Set architecture-specific config defaults (e.g., default `torch_dtype`)
+   - `get_layer_num_blocks()`: Return different block counts for layers appearing in subset of blocks (e.g., MoE layers)
+   - `get_extra_storage_req()`: Return additional storage requirements beyond weights/KV-cache
+5. Add to `PARSER_REGISTRY` in [transformer_roofline_analyzer](transformer_roofline_analyzer)
+6. Export from `parsers/__init__.py`
+7. Add test cases with config files and expected outputs
+
+### Available Operation Methods
+
+The base class provides these methods for calculating hardware metrics:
+
+- `set_op_proj_req()`: Matrix projection (GEMM) operations
+- `set_op_rope_req()`: Rotary positional embeddings
+- `set_op_rmsnorm_req()`: RMSNorm layer normalization
+- `set_op_actmul_req()`: Fused activation + element-wise multiplication (e.g., SiLU gating)
+- `set_op_sum_req()`: Element-wise summation/reduction
+- `set_op_sdpa_req()`: Scaled Dot-Product Attention (handles KV-cache)
 
 ## Important Notes
 

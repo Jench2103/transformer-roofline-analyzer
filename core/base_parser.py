@@ -58,6 +58,22 @@ class BaseModelConfigParser(ABC):
         self.query_conf: QueryConfig = query_config
         self._hw_req_by_layers: Optional[dict[str, dict[str, Number]]] = None
 
+    @classmethod
+    def normalize_config(cls, config_dict: dict) -> dict:
+        """
+        Normalize config by setting default values if needed.
+
+        Subclasses should override this method to handle architecture-specific
+        defaults (e.g., setting torch_dtype in the appropriate location).
+
+        Args:
+            config_dict: Raw config dictionary from HuggingFace or local file.
+
+        Returns:
+            Normalized config dictionary with defaults applied.
+        """
+        return config_dict
+
     @abstractmethod
     def get_layer_list(self) -> list[str]:
         """
@@ -334,6 +350,63 @@ class BaseModelConfigParser(ABC):
         metric_compute += (act_flops + 1) * intermediate_size + n_tokens
         metric_bw_ipt += intermediate_size * n_tokens * 2 * torch_dtype_width(torch_dtype)
         metric_bw_opt += intermediate_size * n_tokens * torch_dtype_width(torch_dtype)
+
+        layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value = metric_compute
+        layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value = metric_bw_wgt
+        layer_entry[BaseModelConfigParser.METRIC_BW_IPT].value = metric_bw_ipt
+        layer_entry[BaseModelConfigParser.METRIC_BW_OPT].value = metric_bw_opt
+
+    def set_op_sdpa_req(
+        self,
+        layer_entry: dict[str, Number],
+        tensor_qo_dims: int,
+        tensor_kv_dims: int,
+        torch_dtype: str,
+    ) -> None:
+        """
+        Compute Scaled Dot-Product Attention (SDPA) hardware requirements.
+
+        This method calculates the compute and bandwidth requirements for the attention
+        operation, accounting for the KV-cache when processing cached tokens.
+
+        Args:
+            layer_entry: The layer metrics dictionary to update.
+            tensor_qo_dims: Dimensions for query/output tensors (typically hidden_size).
+            tensor_kv_dims: Dimensions for key/value tensors (head_dim * num_kv_heads).
+            torch_dtype: Data type for bandwidth calculations.
+
+        FLOPs Breakdown:
+        - GEMM P = QK^T: qo_seq_len * kv_seq_len * (tensor_qo_dims * 2 - 1)
+        - GEMM O = SV:   qo_seq_len * tensor_kv_dims * (kv_seq_len * 2 - 1)
+
+        References:
+        - PyTorch SDPA: https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html
+        """
+        batch_size: int = len(self.query_conf.n_cached_tokens)
+
+        metric_compute: int = 0
+        metric_bw_wgt: int = 0
+        metric_bw_ipt: int = 0
+        metric_bw_opt: int = 0
+
+        for query_idx in range(batch_size):
+            qo_seq_len: int = self.query_conf.n_input_tokens[query_idx]
+            kv_seq_len: int = (
+                self.query_conf.n_cached_tokens[query_idx]
+                + self.query_conf.n_input_tokens[query_idx]
+            )
+
+            tensor_qo_size: int = qo_seq_len * tensor_qo_dims * torch_dtype_width(torch_dtype)
+            tensor_kv_size: int = kv_seq_len * (tensor_kv_dims * 2) * torch_dtype_width(torch_dtype)
+
+            metric_bw_ipt += tensor_qo_size + tensor_kv_size
+            metric_bw_opt += tensor_qo_size
+
+            # GEMM: P = QK^T
+            metric_compute += qo_seq_len * kv_seq_len * (tensor_qo_dims * 2 - 1)
+
+            # GEMM: O = SV
+            metric_compute += qo_seq_len * tensor_kv_dims * (kv_seq_len * 2 - 1)
 
         layer_entry[BaseModelConfigParser.METRIC_COMPUTE].value = metric_compute
         layer_entry[BaseModelConfigParser.METRIC_BW_WGT].value = metric_bw_wgt
