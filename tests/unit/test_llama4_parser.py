@@ -2,16 +2,13 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-# Add project root to sys.path for imports
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-from core.base_parser import BaseModelConfigParser  # noqa: E402
-from core.utils import Number, QueryConfig, torch_dtype_width  # noqa: E402
-from parsers.llama4 import Llama4ConfigParser  # noqa: E402
+from transformer_roofline_analyzer.core.base_parser import BaseModelConfigParser
+from transformer_roofline_analyzer.core.utils import (
+    Number,
+    QueryConfig,
+    torch_dtype_width,
+)
+from transformer_roofline_analyzer.parsers.llama4 import Llama4ConfigParser
 
 
 class TestNormalizeConfig:

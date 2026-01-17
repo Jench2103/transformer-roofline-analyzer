@@ -3,37 +3,12 @@
 from __future__ import annotations
 
 import argparse
-import importlib.machinery
-import importlib.util
 import json
-import sys
-from pathlib import Path
 
 import pytest
 
-# Add project root to sys.path for imports
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-# Import base_parser after path setup
-from core.base_parser import BaseModelConfigParser  # noqa: E402
-
-
-def import_cli_module():
-    """Import the transformer_roofline_analyzer script as a module."""
-    script_path = project_root / "transformer_roofline_analyzer"
-    loader = importlib.machinery.SourceFileLoader("transformer_roofline_analyzer", str(script_path))
-    spec = importlib.util.spec_from_loader("transformer_roofline_analyzer", loader)
-    assert spec is not None, "Failed to create module spec"
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["transformer_roofline_analyzer"] = module
-    assert spec.loader is not None, "Module spec has no loader"
-    spec.loader.exec_module(module)
-    return module
-
-
-# Import the CLI module once
-cli_module = import_cli_module()
+from transformer_roofline_analyzer import cli as cli_module
+from transformer_roofline_analyzer.core.base_parser import BaseModelConfigParser
 
 
 class TestLoadConfig:

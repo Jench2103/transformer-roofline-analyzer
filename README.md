@@ -42,10 +42,19 @@ poetry install
 eval $(poetry env activate)
 ```
 
+#### Updating
+
+After pulling new changes, reinstall the package to update the CLI:
+
+```shell
+git pull
+poetry install
+```
+
 ### Usage
 
 ```shell
-./transformer_roofline_analyzer [OPTIONS] -- <model_name_or_config>
+transformer-roofline-analyzer [OPTIONS] -- <model_name_or_config>
 ```
 
 The tool accepts two types of input:
@@ -65,13 +74,13 @@ The tool accepts two types of input:
 Analyze a single query with 1,048,576 cached tokens (in KV cache) and 1 input token:
 
 ```shell
-./transformer_roofline_analyzer --cached-tokens 1048576 --input-tokens 1 -- meta-llama/Llama-2-7b-hf
+transformer-roofline-analyzer --cached-tokens 1048576 --input-tokens 1 -- meta-llama/Llama-2-7b-hf
 ```
 
 #### Example: Single Query with Local Config File
 
 ```shell
-./transformer_roofline_analyzer --cached-tokens 1048576 --input-tokens 1 -- Llama-4-Scout-17B-16E-config.json
+transformer-roofline-analyzer --cached-tokens 1048576 --input-tokens 1 -- Llama-4-Scout-17B-16E-config.json
 ```
 
 Sample output:
@@ -106,7 +115,7 @@ Minimum Storage Requirement: (Weights) 28.13 GiB + (KV-cache) 192.00 GiB + (Addi
 Analyze two queries with different numbers of cached and input tokens:
 
 ```shell
-./transformer_roofline_analyzer --cached-tokens 1048576 1024 --input-tokens 1 1 -- meta-llama/Llama-4-Scout-17B-16E
+transformer-roofline-analyzer --cached-tokens 1048576 1024 --input-tokens 1 1 -- meta-llama/Llama-4-Scout-17B-16E
 ```
 
 #### Example: Batched Queries with Identical Token Counts
@@ -114,13 +123,13 @@ Analyze two queries with different numbers of cached and input tokens:
 Analyze two queries with the same number of cached and input tokens:
 
 ```shell
-./transformer_roofline_analyzer --cached-tokens 1024 --input-tokens 1 --batch-size 2 -- meta-llama/Llama-4-Scout-17B-16E
+transformer-roofline-analyzer --cached-tokens 1024 --input-tokens 1 --batch-size 2 -- meta-llama/Llama-4-Scout-17B-16E
 ```
 
 #### Help Message
 
 ```text
-usage: transformer_roofline_analyzer [-h] [--cached-tokens CACHED_TOKENS [CACHED_TOKENS ...]] [--input-tokens INPUT_TOKENS [INPUT_TOKENS ...]] [--batch-size BATCH_SIZE] model_name_or_config
+usage: transformer-roofline-analyzer [-h] [--cached-tokens CACHED_TOKENS [CACHED_TOKENS ...]] [--input-tokens INPUT_TOKENS [INPUT_TOKENS ...]] [--batch-size BATCH_SIZE] model_name_or_config
 
 positional arguments:
   model_name_or_config  HuggingFace model name (e.g., 'meta-llama/Llama-2-7b-hf') or path to local config.json file

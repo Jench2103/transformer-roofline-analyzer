@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Command-line interface for Transformer Roofline Analyzer."""
 
 import argparse
 import json
@@ -10,15 +11,8 @@ from pathlib import Path
 # We only use config files, not model weights, so these frameworks aren't needed
 os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
 
-# Get the absolute path of the directory containing the current script
-# This is the project's root directory
-script_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Add this directory to Python's system path so it can find internal modules
-sys.path.insert(0, script_dir)
-
-from core import QueryConfig  # noqa: E402
-from parsers import Llama4ConfigParser, LlamaConfigParser  # noqa: E402
+from transformer_roofline_analyzer.core import QueryConfig
+from transformer_roofline_analyzer.parsers import Llama4ConfigParser, LlamaConfigParser
 
 
 def load_config(model_name_or_path: str) -> dict:
@@ -107,9 +101,10 @@ def compute_roofline_metrics(model_conf: dict, args: argparse.Namespace) -> None
     parser.print_summary()
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Analyze transformer model hardware requirements (compute and bandwidth)."
+        prog="transformer-roofline-analyzer",
+        description="Analyze transformer model hardware requirements (compute and bandwidth).",
     )
     parser.add_argument(
         "model_name_or_config",

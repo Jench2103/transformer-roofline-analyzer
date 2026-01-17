@@ -43,11 +43,11 @@ poetry shell
 # Option 1: Activate the virtual environment first
 poetry shell
 python script.py
-./transformer_roofline_analyzer [OPTIONS] -- <model_name_or_config>
+transformer-roofline-analyzer [OPTIONS] -- <model_name_or_config>
 
 # Option 2: Use poetry run prefix
 poetry run python script.py
-poetry run ./transformer_roofline_analyzer [OPTIONS] -- <model>
+poetry run transformer-roofline-analyzer [OPTIONS] -- <model>
 ```
 
 ### Dependency Management
@@ -81,22 +81,22 @@ The CLI accepts HuggingFace model names (downloads config automatically) or loca
 files. Default `torch_dtype` is `float16` for models that don't specify it.
 
 ```bash
-./transformer_roofline_analyzer [OPTIONS] -- <model_name_or_config>
+transformer-roofline-analyzer [OPTIONS] -- <model_name_or_config>
 
 # Using HuggingFace model name
-./transformer_roofline_analyzer --cached-tokens 1048576 --input-tokens 1 -- meta-llama/Llama-2-7b-hf
+transformer-roofline-analyzer --cached-tokens 1048576 --input-tokens 1 -- meta-llama/Llama-2-7b-hf
 
 # Using local config file
-./transformer_roofline_analyzer --cached-tokens 1048576 --input-tokens 1 -- path/to/config.json
+transformer-roofline-analyzer --cached-tokens 1048576 --input-tokens 1 -- path/to/config.json
 
 # Multiple queries
-./transformer_roofline_analyzer --cached-tokens 1048576 1024 --input-tokens 1 1 -- meta-llama/Llama-2-7b-hf
+transformer-roofline-analyzer --cached-tokens 1048576 1024 --input-tokens 1 1 -- meta-llama/Llama-2-7b-hf
 
 # Batched queries
-./transformer_roofline_analyzer --cached-tokens 1024 --input-tokens 1 --batch-size 2 -- meta-llama/Llama-2-7b-hf
+transformer-roofline-analyzer --cached-tokens 1024 --input-tokens 1 --batch-size 2 -- meta-llama/Llama-2-7b-hf
 
 # Show help
-./transformer_roofline_analyzer --help
+transformer-roofline-analyzer --help
 ```
 
 ## Code Quality
@@ -179,39 +179,43 @@ The codebase follows a parser-based architecture for analyzing transformer model
 
 ```text
 transformer-roofline-calculator/
-├── transformer_roofline_analyzer    # CLI entry point with parser registry
-├── core/
-│   ├── base_parser.py              # Abstract base class for parsers
-│   └── utils.py                    # Number, QueryConfig, utilities
-└── parsers/
-    ├── llama.py                    # LLaMA-2/3 parser
-    └── llama4.py                   # LLaMA-4 parser with MoE support
+├── transformer_roofline_analyzer/   # Main package
+│   ├── __init__.py                  # Package exports
+│   ├── __main__.py                  # Module execution entry
+│   ├── cli.py                       # CLI with parser registry
+│   ├── core/                        # Core module
+│   │   ├── base_parser.py           # Abstract base class for parsers
+│   │   └── utils.py                 # Number, QueryConfig, utilities
+│   └── parsers/                     # Model parsers
+│       ├── llama.py                 # LLaMA-2/3 parser
+│       └── llama4.py                # LLaMA-4 parser with MoE support
+└── tests/
 ```
 
-1. **Base Parser Framework** (`core/base_parser.py`)
+1. **Base Parser Framework** (`transformer_roofline_analyzer/core/base_parser.py`)
    - `BaseModelConfigParser`: Abstract base class for all model parsers
    - Provides operation methods: `set_op_proj_req()`, `set_op_rope_req()`, `set_op_rmsnorm_req()`,
      `set_op_actmul_req()`, `set_op_sum_req()`, `set_op_sdpa_req()`
    - Handles tabulated output and storage requirement calculations
 
-2. **Model-Specific Parsers** (`parsers/`)
+2. **Model-Specific Parsers** (`transformer_roofline_analyzer/parsers/`)
    - `LlamaConfigParser`: LLaMA-2/LLaMA-3 architectures
    - `Llama4ConfigParser`: LLaMA-4 with MoE support
 
-3. **Utilities** (`core/utils.py`)
+3. **Utilities** (`transformer_roofline_analyzer/core/utils.py`)
    - `Number`: Numerical values with units and formatting
    - `QueryConfig`: Token-related configuration
    - `TransformerMode`: Text vs. vision modes
    - Helper functions: `torch_dtype_width()`, `act_flops()`
 
-4. **CLI Entry Point** (`transformer_roofline_analyzer`)
+4. **CLI Entry Point** (`transformer_roofline_analyzer/cli.py`)
    - `PARSER_REGISTRY`: Maps model types to parser classes
    - Loads HuggingFace configs and delegates to parsers
 
 For detailed module documentation, see:
 
-- [core/README.md](core/README.md) - Core module documentation
-- [parsers/README.md](parsers/README.md) - Parser framework and extension guide
+- [transformer_roofline_analyzer/core/README.md](transformer_roofline_analyzer/core/README.md) - Core module documentation
+- [transformer_roofline_analyzer/parsers/README.md](transformer_roofline_analyzer/parsers/README.md) - Parser framework and extension guide
 
 ### Key Design Patterns
 
@@ -251,10 +255,10 @@ To support a new transformer architecture, follow these steps:
 
 ### Step 1: Create Parser File
 
-Create a new file in `parsers/` (e.g., `parsers/newmodel.py`):
+Create a new file in `transformer_roofline_analyzer/parsers/` (e.g., `transformer_roofline_analyzer/parsers/newmodel.py`):
 
 ```python
-from core import (
+from transformer_roofline_analyzer.core import (
     BaseModelConfigParser,
     Number,
     TransformerMode,
@@ -330,7 +334,7 @@ def get_extra_storage_req(self) -> list[tuple[str, Number]]:
 
 ### Step 4: Register Parser
 
-Add to `PARSER_REGISTRY` in `transformer_roofline_analyzer`:
+Add to `PARSER_REGISTRY` in `transformer_roofline_analyzer/cli.py`:
 
 ```python
 PARSER_REGISTRY = {
@@ -340,7 +344,7 @@ PARSER_REGISTRY = {
 }
 ```
 
-### Step 5: Export from `parsers/__init__.py`
+### Step 5: Export from `transformer_roofline_analyzer/parsers/__init__.py`
 
 ```python
 from .newmodel import NewModelConfigParser
@@ -415,8 +419,8 @@ implementation. Documentation files to check:
 | `README.md` | User-facing features and usage examples |
 | `CONTRIBUTING.md` | Development setup, architecture, code style |
 | `CLAUDE.md` | Claude Code-specific guidelines |
-| `core/README.md` | Core module APIs and methods |
-| `parsers/README.md` | Parser framework and extension guide |
+| `transformer_roofline_analyzer/core/README.md` | Core module APIs and methods |
+| `transformer_roofline_analyzer/parsers/README.md` | Parser framework and extension guide |
 | `tests/README.md` | Test structure and commands |
 
 ## Important Notes

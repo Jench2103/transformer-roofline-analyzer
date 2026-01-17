@@ -71,6 +71,7 @@ def test_transformer_roofline(
     # Build command
     cmd: list[str] = [
         "python3",
+        "-m",
         "transformer_roofline_analyzer",
         *cached_tokens,
         *input_tokens,

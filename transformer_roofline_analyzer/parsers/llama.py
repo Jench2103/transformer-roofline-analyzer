@@ -1,4 +1,4 @@
-from core import (
+from transformer_roofline_analyzer.core import (
     BaseModelConfigParser,
     Number,
     TransformerMode,

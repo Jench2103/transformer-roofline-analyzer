@@ -16,7 +16,7 @@ requirements for transformer model architectures. It accepts HuggingFace model n
 poetry shell
 
 # Run CLI
-./transformer_roofline_analyzer --cached-tokens 1048576 --input-tokens 1 -- meta-llama/Llama-2-7b-hf
+transformer-roofline-analyzer --cached-tokens 1048576 --input-tokens 1 -- meta-llama/Llama-2-7b-hf
 
 # Run tests
 pytest
@@ -124,19 +124,19 @@ Documentation files to check:
 - `README.md` - User-facing features and usage examples
 - `CONTRIBUTING.md` - Development setup, architecture, code style
 - `CLAUDE.md` - Claude Code-specific guidelines
-- `core/README.md` - Core module APIs and methods
-- `parsers/README.md` - Parser framework and extension guide
+- `transformer_roofline_analyzer/core/README.md` - Core module APIs and methods
+- `transformer_roofline_analyzer/parsers/README.md` - Parser framework and extension guide
 - `tests/README.md` - Test structure and commands
 
 ## Key Files Reference
 
 | File | Purpose |
 |------|---------|
-| `transformer_roofline_analyzer` | CLI entry point with parser registry |
-| `core/base_parser.py` | Abstract base class for all model parsers |
-| `core/utils.py` | Number, QueryConfig, utilities |
-| `parsers/llama.py` | LLaMA-2/3 parser (reference implementation) |
-| `parsers/llama4.py` | LLaMA-4 parser with MoE support |
+| `transformer_roofline_analyzer/cli.py` | CLI entry point with parser registry |
+| `transformer_roofline_analyzer/core/base_parser.py` | Abstract base class for all model parsers |
+| `transformer_roofline_analyzer/core/utils.py` | Number, QueryConfig, utilities |
+| `transformer_roofline_analyzer/parsers/llama.py` | LLaMA-2/3 parser (reference implementation) |
+| `transformer_roofline_analyzer/parsers/llama4.py` | LLaMA-4 parser with MoE support |
 
 ## For Full Documentation
 
@@ -144,6 +144,6 @@ See:
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Development setup, architecture, code style, adding
   new model support
-- [core/README.md](core/README.md) - Core module documentation
-- [parsers/README.md](parsers/README.md) - Parser framework and extension guide
+- [transformer_roofline_analyzer/core/README.md](transformer_roofline_analyzer/core/README.md) - Core module documentation
+- [transformer_roofline_analyzer/parsers/README.md](transformer_roofline_analyzer/parsers/README.md) - Parser framework and extension guide
 - [tests/README.md](tests/README.md) - Testing documentation
