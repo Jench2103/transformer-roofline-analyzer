@@ -38,4 +38,4 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          poetry run pytest tests/test_transformer_roofline.py
+          poetry run pytest tests/end-to-end/

@@ -89,9 +89,17 @@ The tool accepts HuggingFace model names (downloads config automatically, cached
 # Run all tests (verbose mode configured in pyproject.toml)
 pytest
 
-# Run specific test
-pytest tests/test_transformer_roofline.py::test_transformer_roofline
+# Run unit tests only
+pytest tests/unit/ -v
+
+# Run end-to-end tests only
+pytest tests/end-to-end/ -v
+
+# Debug E2E tests by printing actual output
+pytest tests/end-to-end/ --print-actual-output
 ```
+
+For detailed test documentation, see [tests/README.md](tests/README.md) and [tests/CLAUDE.md](tests/CLAUDE.md).
 
 ### Code Quality
 
@@ -169,12 +177,20 @@ For each layer, the parsers calculate:
 
 ### Testing Strategy
 
-Tests are organized using a JSON-driven approach ([tests/test_transformer_roofline.py](tests/test_transformer_roofline.py)):
+Tests are organized into two categories:
 
-- Each test case is defined in a `test.json` file alongside config files
-- `discover_test_cases()` automatically finds all test definitions
-- Tests run the CLI and compare output against expected output files
-- Use `pytest --print-actual-output` fixture to debug test outputs
+1. **Unit Tests** ([tests/unit/](tests/unit/))
+   - Test individual functions and classes in isolation
+   - Verify mathematical formulas for hardware metrics
+   - Fast execution, no external dependencies
+
+2. **End-to-End Tests** ([tests/end-to-end/](tests/end-to-end/))
+   - JSON-driven test discovery using `test.json` files
+   - Run the CLI and compare output against expected files
+   - Support both local configs and HuggingFace model names
+   - Use `pytest --print-actual-output` to debug test outputs
+
+See [tests/README.md](tests/README.md) for detailed documentation on adding new tests.
 
 ## Code Style
 
