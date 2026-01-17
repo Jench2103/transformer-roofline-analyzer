@@ -8,6 +8,25 @@ from core import (
 
 
 class Llama4ConfigParser(BaseModelConfigParser):
+    """
+    Parser for LLaMA-4 transformer architecture with Mixture of Experts (MoE) support.
+
+    LLaMA-4 uses an interleaved MoE architecture where:
+    - MoE layers appear every `interleave_moe_layer_step` blocks
+    - Non-MoE (dense) layers fill the remaining blocks
+    - Each MoE layer has both routed experts and a shared expert
+
+    Key architectural differences from LLaMA-2/3:
+    - Nested config structure: fields are under `text_config` or `vision_config`
+    - MoE routing: `num_local_experts` total, `num_experts_per_tok` activated per token
+    - Shared expert: Always activated alongside routed experts
+    - Different intermediate sizes: `intermediate_size` for MoE, `intermediate_size_mlp` for dense
+
+    Supported modes:
+    - Text mode: Fully implemented
+    - Vision mode: Not yet implemented
+    """
+
     @classmethod
     def normalize_config(cls, config_dict: dict) -> dict:
         """Set default torch_dtype in text_config if not present."""
@@ -52,6 +71,27 @@ class Llama4ConfigParser(BaseModelConfigParser):
                 return self.model_conf["vision_config"]["num_hidden_layers"]
 
     def get_layer_num_blocks(self, layer: str) -> int:
+        """
+        Return the number of transformer blocks that contain the specified layer.
+
+        LLaMA-4 uses interleaved MoE architecture:
+        - MoE layers (RoutedExp, SharedExp, RoutedSharedExpAdd) appear in:
+          `num_blocks // interleave_moe_layer_step` blocks
+        - Non-MoE (dense) layers appear in the remaining blocks:
+          `num_blocks - (num_blocks // interleave_moe_layer_step)` blocks
+        - Attention layers and other common layers appear in all blocks
+
+        Example with 48 blocks and interleave_moe_layer_step=4:
+        - MoE layers: 48 // 4 = 12 blocks (every 4th block)
+        - Non-MoE layers: 48 - 12 = 36 blocks (remaining blocks)
+        - Attention layers: 48 blocks (all)
+
+        Args:
+            layer: Name of the layer to query.
+
+        Returns:
+            Number of blocks containing this layer.
+        """
         match self.query_conf.t_mode:
             case TransformerMode.Text:
                 if (
@@ -98,6 +138,24 @@ class Llama4ConfigParser(BaseModelConfigParser):
         return kvcache_size_per_block * self.get_num_blocks()
 
     def get_extra_storage_req(self) -> list[tuple[str, Number]]:
+        """
+        Return additional storage requirements beyond weight bandwidth in the metrics table.
+
+        For LLaMA-4 MoE, this includes:
+
+        1. Additional Expert Weights:
+           - During inference, only `num_experts_per_tok` experts are used per token
+           - The weight bandwidth metrics only account for these activated experts
+           - However, all `num_local_experts` must be stored in memory
+           - This reports the storage for the unused experts:
+             `(num_local_experts - num_experts_per_tok) * expert_size * num_moe_blocks`
+
+        2. Embedding Table:
+           - Token embedding weights: `hidden_size * vocab_size * dtype_width`
+
+        Returns:
+            List of (description, size) tuples for additional storage.
+        """
         req_list: list[tuple[str, Number]] = []
 
         match self.query_conf.t_mode:
@@ -105,12 +163,15 @@ class Llama4ConfigParser(BaseModelConfigParser):
                 text_config: dict = self.model_conf["text_config"]
 
                 # Additional Experts
+                # Each expert has 3 weight matrices: gate, up, down
+                # Size per expert: hidden_size * intermediate_size * dtype_width * 3
                 exp_size: int = (
                     text_config["hidden_size"]
                     * text_config["intermediate_size"]
                     * torch_dtype_width(text_config["torch_dtype"])
                     * 3
                 )
+                # Number of additional experts per MoE block that aren't activated
                 extra_exp_cnt: int = (
                     text_config["num_local_experts"] - text_config["num_experts_per_tok"]
                 ) * (self.get_num_blocks() // text_config["interleave_moe_layer_step"])
@@ -133,6 +194,24 @@ class Llama4ConfigParser(BaseModelConfigParser):
 
     @property
     def hw_req_by_layers(self) -> dict[str, dict[str, Number]]:
+        """
+        Compute hardware requirements for each layer in LLaMA-4.
+
+        MoE FFN structure (for MoE blocks):
+        - Router: Projects input to expert scores (hidden_size -> num_local_experts)
+        - RoutedExp: `num_experts_per_tok` activated experts, each processes all tokens
+        - SharedExp: Always-active shared expert (1 expert processing all tokens)
+        - RoutedSharedExpAdd: Sum outputs from routed and shared experts
+
+        Non-MoE FFN structure (for dense blocks):
+        - NonMoE: Standard dense FFN with `intermediate_size_mlp`
+
+        The routed expert loop (line ~220) calls set_op_* methods `num_experts_per_tok`
+        times to account for all activated experts per token.
+
+        Returns:
+            Dictionary mapping layer names to their hardware metrics.
+        """
         if self._hw_req_by_layers is not None:
             return self._hw_req_by_layers.copy()
 
