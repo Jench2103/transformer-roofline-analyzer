@@ -21,12 +21,12 @@
 
 ### Prerequisites
 
-This project uses [Poetry](https://python-poetry.org/) for dependency management.
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
 
 #### Requirements
 
 - Python ≥ 3.10
-- Poetry ≥ 2.0.0
+- uv ≥ 0.5.0
 
 #### Setup
 
@@ -35,11 +35,8 @@ This project uses [Poetry](https://python-poetry.org/) for dependency management
 git clone https://github.com/Jench2103/transformer-roofline-analyzer.git
 cd transformer-roofline-analyzer
 
-# Install dependencies using Poetry
-poetry install
-
-# Activate the virtual environment
-eval $(poetry env activate)
+# Install dependencies
+uv sync
 ```
 
 #### Updating
@@ -48,12 +45,21 @@ After pulling new changes, reinstall the package to update the CLI:
 
 ```shell
 git pull
-poetry install
+uv sync
 ```
 
 ### Usage
 
+Run the CLI directly via uv without activating the virtual environment:
+
 ```shell
+uv run transformer-roofline-analyzer [OPTIONS] -- <model_name_or_config>
+```
+
+Alternatively, activate the virtual environment first and run the CLI directly:
+
+```shell
+source .venv/bin/activate
 transformer-roofline-analyzer [OPTIONS] -- <model_name_or_config>
 ```
 

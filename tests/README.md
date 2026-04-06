@@ -26,19 +26,19 @@ tests/
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run only unit tests
-pytest tests/unit/ -v
+uv run pytest tests/unit/ -v
 
 # Run only end-to-end tests
-pytest tests/end-to-end/ -v
+uv run pytest tests/end-to-end/ -v
 
 # Run with coverage
-pytest --cov=core --cov=parsers --cov-report=term-missing
+uv run pytest --cov=core --cov=parsers --cov-report=term-missing
 
 # Debug E2E tests by printing actual output
-pytest tests/end-to-end/ --print-actual-output
+uv run pytest tests/end-to-end/ --print-actual-output
 ```
 
 ## Test Types

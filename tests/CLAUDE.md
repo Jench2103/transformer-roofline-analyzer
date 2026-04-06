@@ -85,7 +85,7 @@ Tests are defined in `test.json` files and discovered automatically by `discover
 Use `--print-actual-output` to see actual CLI output:
 
 ```bash
-pytest tests/end-to-end/ --print-actual-output -v
+uv run pytest tests/end-to-end/ --print-actual-output -v
 ```
 
 ### Adding New E2E Tests
@@ -94,7 +94,7 @@ pytest tests/end-to-end/ --print-actual-output -v
 2. Add config files: `config-0.json`, `config-1.json`, etc.
 3. Create `test.json` with test definitions
 4. Generate expected outputs using `--print-actual-output` or manual CLI runs
-5. Verify with `pytest tests/end-to-end/<model_name>/ -v`
+5. Verify with `uv run pytest tests/end-to-end/<model_name>/ -v`
 
 ## Guidelines
 

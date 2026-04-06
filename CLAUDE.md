@@ -12,14 +12,14 @@ requirements for transformer model architectures. It accepts HuggingFace model n
 ## Quick Reference
 
 ```bash
-# Activate virtual environment
-poetry shell
+# Install dependencies
+uv sync
 
 # Run CLI
-transformer-roofline-analyzer --cached-tokens 1048576 --input-tokens 1 -- meta-llama/Llama-2-7b-hf
+uv run transformer-roofline-analyzer --cached-tokens 1048576 --input-tokens 1 -- meta-llama/Llama-2-7b-hf
 
 # Run tests
-pytest
+uv run pytest
 ```
 
 ## Claude Code-Specific Guidelines
